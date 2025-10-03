@@ -1738,6 +1738,10 @@ process.once('SIGTERM', () => bot.stop('SIGTERM'));
 // Запуск бота
 async function startBot() {
   try {
+    // Явный вывод порта для детекции Timeweb - делаем это ПЕРВЫМ!
+    const detectionPort = process.env.PORT || process.env.API_PORT || 3001;
+    console.log(`Listening on port ${detectionPort}`);
+
     // Проверяем подключение к базе данных
     const { error } = await supabase.from('users').select('count').limit(1);
     if (error) {
