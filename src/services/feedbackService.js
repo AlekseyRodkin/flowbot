@@ -186,16 +186,9 @@ ${feedbackData.message}
 
 ⏰ ${moment().tz('Europe/Moscow').format('DD.MM.YYYY HH:mm')}`;
 
-      // Клавиатура для быстрых действий
+      // Клавиатура с кнопкой ответа
       const keyboard = Markup.inlineKeyboard([
-        [
-          Markup.button.callback('✅ Принято', `admin_feedback_accept_${feedbackData.id}`),
-          Markup.button.callback('🔧 В работе', `admin_feedback_progress_${feedbackData.id}`)
-        ],
-        [
-          Markup.button.callback('💬 Ответить', `admin_feedback_reply_${feedbackData.id}_${telegramId}`),
-          Markup.button.callback('✔️ Решено', `admin_feedback_resolve_${feedbackData.id}`)
-        ]
+        [Markup.button.callback('💬 Ответить', `admin_feedback_reply_${feedbackData.id}_${telegramId}`)]
       ]);
 
       // Отправляем админу

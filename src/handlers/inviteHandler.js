@@ -163,6 +163,10 @@ class InviteHandler {
     const user = ctx.session.user;
 
     switch(action) {
+      case 'invite':
+        // Главное меню приглашений
+        await this.showInviteMenu(ctx, user);
+        break;
       case 'share_telegram':
         await this.shareToTelegram(ctx, user);
         break;

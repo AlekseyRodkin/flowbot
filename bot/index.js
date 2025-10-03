@@ -92,7 +92,7 @@ bot.use(async (ctx, next) => {
 // Middleware для логирования
 bot.use(async (ctx, next) => {
   const start = Date.now();
-  
+
   // Логируем входящее сообщение
   console.log(`\n📨 Получено: ${ctx.updateType} от @${ctx.from?.username || ctx.from?.id}`);
   if (ctx.message?.text) {
@@ -101,9 +101,9 @@ bot.use(async (ctx, next) => {
   if (ctx.callbackQuery?.data) {
     console.log(`   Callback: ${ctx.callbackQuery.data}`);
   }
-  
+
   await next();
-  
+
   const responseTime = Date.now() - start;
   logger.info(`${ctx.updateType} processed in ${responseTime}ms`);
   console.log(`   ✅ Обработано за ${responseTime}ms`);
@@ -317,9 +317,6 @@ bot.on('text', async (ctx) => {
       await bot.telegram.sendMessage(userId, `💬 *Ответ от команды FlowBot:*\n\n${replyText}`, {
         parse_mode: 'Markdown'
       });
-
-      // Обновляем статус отзыва
-      await feedbackService.updateFeedbackStatus(feedbackId, 'resolved');
 
       // Очищаем сессию
       delete ctx.session.adminReplyTo;
@@ -970,6 +967,8 @@ bot.on('callback_query', async (ctx) => {
     case 'referral':
       // Обработка реферальных действий
       ctx.session = { user: ctx.state.user };
+      // Создаём ctx.match для совместимости с handleCallback
+      ctx.match = [data];
       await inviteHandler.handleCallback(ctx);
       break;
 
@@ -1638,37 +1637,23 @@ _💡 Независимо от выбора, все начинают с про�
 
     case 'admin':
       // Обработка действий админа с отзывами
-      if (params[0] === 'feedback') {
+      if (params[0] === 'feedback' && params[1] === 'reply') {
         const feedbackId = params[2];
-        const action = params[1];
+        const userId = params[3];
 
         try {
-          if (action === 'accept') {
-            await feedbackService.updateFeedbackStatus(feedbackId, 'in_progress');
-            await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
-            await ctx.answerCbQuery('✅ Отзыв принят в работу');
-          } else if (action === 'progress') {
-            await feedbackService.updateFeedbackStatus(feedbackId, 'in_progress');
-            await ctx.answerCbQuery('🔧 Статус обновлён: В работе');
-          } else if (action === 'resolve') {
-            await feedbackService.updateFeedbackStatus(feedbackId, 'resolved');
-            await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
-            await ctx.answerCbQuery('✔️ Отзыв помечен как решённый');
-          } else if (action === 'reply') {
-            const userId = params[3];
-            // Устанавливаем режим ожидания ответа админа
-            if (!ctx.session) ctx.session = {};
-            ctx.session.adminReplyTo = { feedbackId, userId };
+          // Устанавливаем режим ожидания ответа админа
+          if (!ctx.session) ctx.session = {};
+          ctx.session.adminReplyTo = { feedbackId, userId };
 
-            await ctx.answerCbQuery('💬 Напиши ответ пользователю');
-            await ctx.reply('💬 Напиши текст ответа пользователю:', {
-              reply_markup: Markup.inlineKeyboard([
-                [Markup.button.callback('❌ Отмена', 'cancel_admin_reply')]
-              ]).reply_markup
-            });
-          }
+          await ctx.answerCbQuery('💬 Напиши ответ пользователю');
+          await ctx.reply('💬 Напиши текст ответа пользователю:', {
+            reply_markup: Markup.inlineKeyboard([
+              [Markup.button.callback('❌ Отмена', 'cancel_admin_reply')]
+            ]).reply_markup
+          });
         } catch (error) {
-          console.error('Error handling admin feedback action:', error);
+          console.error('Error handling admin feedback reply:', error);
           await ctx.answerCbQuery('Ошибка обработки');
         }
       }
