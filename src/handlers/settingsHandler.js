@@ -21,6 +21,9 @@ class SettingsHandler {
           Markup.button.callback('🆘 Помощь', 'show_help')
         ],
         [
+          Markup.button.callback('👥 Пригласить друга', 'invite')
+        ],
+        [
           Markup.button.callback('🌅 Время утренних задач', 'settings_morning'),
           Markup.button.callback('🌙 Время рефлексии', 'settings_evening')
         ],
