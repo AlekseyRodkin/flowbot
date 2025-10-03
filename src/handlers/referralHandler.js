@@ -13,7 +13,7 @@ class ReferralHandler {
       const user = ctx.state.user;
       const stats = await this.referralService.getReferralStats(user.id);
       const globalStats = await this.referralService.getGlobalStats();
-      const referralLink = this.referralService.generateReferralLink(user.id);
+      const referralLink = await this.referralService.generateReferralLink(user.id);
 
       let message = `🚀 *Развивай FlowBot вместе с нами!*\n\n`;
       
@@ -69,7 +69,7 @@ class ReferralHandler {
   async shareInTelegram(ctx) {
     try {
       const user = ctx.state.user;
-      const referralLink = this.referralService.generateReferralLink(user.id);
+      const referralLink = await this.referralService.generateReferralLink(user.id);
       
       const shareText = this.getShareText(user.first_name, referralLink);
       
@@ -97,7 +97,7 @@ class ReferralHandler {
   async showCopyText(ctx) {
     try {
       const user = ctx.state.user;
-      const referralLink = this.referralService.generateReferralLink(user.id);
+      const referralLink = await this.referralService.generateReferralLink(user.id);
       const shareText = this.getShareText(user.first_name, referralLink);
 
       const backKeyboard = Markup.inlineKeyboard([
@@ -218,7 +218,7 @@ class ReferralHandler {
   async createChallenge(ctx) {
     try {
       const user = ctx.state.user;
-      const referralLink = this.referralService.generateReferralLink(user.id);
+      const referralLink = await this.referralService.generateReferralLink(user.id);
 
       const challengeText = 
         `🏆 *НЕДЕЛЬНЫЙ ЧЕЛЛЕНДЖ ПРОДУКТИВНОСТИ*\n\n` +

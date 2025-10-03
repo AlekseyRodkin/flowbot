@@ -13,7 +13,7 @@ class InviteHandler {
   async showInviteMenu(ctx, user) {
     try {
       // Генерируем реферальную ссылку
-      const referralLink = this.referralService.generateReferralLink(user.id);
+      const referralLink = await this.referralService.generateReferralLink(user.id);
       
       // Получаем статистику рефералов
       const stats = await this.referralService.getReferralStats(user.id);
@@ -192,7 +192,7 @@ class InviteHandler {
 
   // Поделиться в Telegram
   async shareToTelegram(ctx, user) {
-    const referralLink = this.referralService.generateReferralLink(user.id);
+    const referralLink = await this.referralService.generateReferralLink(user.id);
 
     const shareText =
       `🎯 Я использую FlowBot для повышения продуктивности!\n\n` +
@@ -220,7 +220,7 @@ class InviteHandler {
 
   // Текст для коллег
   async showWorkText(ctx, user) {
-    const referralLink = this.referralService.generateReferralLink(user.id);
+    const referralLink = await this.referralService.generateReferralLink(user.id);
 
     const workText =
       `Привет! Хочу поделиться инструментом, который реально помог мне стать продуктивнее.\n\n` +
@@ -242,7 +242,7 @@ class InviteHandler {
 
   // Текст для друзей
   async showFriendsText(ctx, user) {
-    const referralLink = this.referralService.generateReferralLink(user.id);
+    const referralLink = await this.referralService.generateReferralLink(user.id);
 
     const friendsText =
       `Йоу! Помнишь, я жаловался на прокрастинацию? Нашел решение 🔥\n\n` +

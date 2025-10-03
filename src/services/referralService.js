@@ -9,9 +9,23 @@ class ReferralService {
   }
 
   // Генерация реферальной ссылки
-  generateReferralLink(userId) {
+  async generateReferralLink(userId) {
     const referralCode = this.generateReferralCode(userId);
-    return `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}?start=ref_${referralCode}`;
+
+    // Получаем username бота динамически
+    let botUsername = process.env.TELEGRAM_BOT_USERNAME;
+
+    if (!botUsername && this.bot) {
+      try {
+        const botInfo = await this.bot.telegram.getMe();
+        botUsername = botInfo.username;
+      } catch (error) {
+        console.error('Error getting bot username:', error);
+        botUsername = 'FlowList_Bot'; // fallback
+      }
+    }
+
+    return `https://t.me/${botUsername}?start=ref_${referralCode}`;
   }
 
   // Генерация уникального кода
