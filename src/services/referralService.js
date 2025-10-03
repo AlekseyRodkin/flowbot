@@ -6,25 +6,44 @@ class ReferralService {
   constructor(supabase, bot) {
     this.supabase = supabase;
     this.bot = bot;
+    this.botUsername = null; // Кэш для username
+  }
+
+  // Получить username бота (с кэшированием)
+  async getBotUsername() {
+    // Если уже кэшировано - возвращаем
+    if (this.botUsername) {
+      return this.botUsername;
+    }
+
+    // Сначала пробуем из переменной окружения
+    if (process.env.TELEGRAM_BOT_USERNAME) {
+      this.botUsername = process.env.TELEGRAM_BOT_USERNAME;
+      return this.botUsername;
+    }
+
+    // Если нет переменной окружения и есть bot instance - получаем через API
+    if (this.bot) {
+      try {
+        const botInfo = await this.bot.telegram.getMe();
+        this.botUsername = botInfo.username;
+        console.log(`✅ Bot username fetched: @${this.botUsername}`);
+        return this.botUsername;
+      } catch (error) {
+        console.error('❌ Error getting bot username:', error);
+      }
+    }
+
+    // Fallback
+    this.botUsername = 'FlowList_Bot';
+    console.warn('⚠️ Using fallback bot username: @FlowList_Bot');
+    return this.botUsername;
   }
 
   // Генерация реферальной ссылки
   async generateReferralLink(userId) {
     const referralCode = this.generateReferralCode(userId);
-
-    // Получаем username бота динамически
-    let botUsername = process.env.TELEGRAM_BOT_USERNAME;
-
-    if (!botUsername && this.bot) {
-      try {
-        const botInfo = await this.bot.telegram.getMe();
-        botUsername = botInfo.username;
-      } catch (error) {
-        console.error('Error getting bot username:', error);
-        botUsername = 'FlowList_Bot'; // fallback
-      }
-    }
-
+    const botUsername = await this.getBotUsername();
     return `https://t.me/${botUsername}?start=ref_${referralCode}`;
   }
 
