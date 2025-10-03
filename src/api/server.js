@@ -79,9 +79,11 @@ function startApiServer() {
         console.error('❌ Failed to start API server:', err);
         reject(err);
       } else {
+        // Явный вывод порта для детекции Timeweb
+        console.log(`Listening on port ${PORT}`);
         console.log(`🚀 FlowBot API Server running on port ${PORT}`);
-        console.log(`📡 Webhooks available at: http://localhost:${PORT}/api/webhooks`);
-        console.log(`🏥 Health check: http://localhost:${PORT}/api/webhooks/health`);
+        console.log(`📡 Webhooks available at: http://0.0.0.0:${PORT}/api/webhooks`);
+        console.log(`🏥 Health check: http://0.0.0.0:${PORT}/api/webhooks/health`);
         resolve(server);
       }
     });

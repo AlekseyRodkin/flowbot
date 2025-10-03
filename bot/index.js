@@ -1771,12 +1771,13 @@ async function startBot() {
     }
 
     // Выводим красивый статус
+    const apiPort = process.env.PORT || process.env.API_PORT || 3001;
     console.log('\n════════════════════════════════════════════');
     console.log('✅ FlowBot успешно запущен!');
     console.log('════════════════════════════════════════════');
     console.log('📱 Telegram бот: @FlowList_Bot');
-    console.log('🌐 API сервер: http://localhost:3001');
-    console.log('📡 Webhooks: http://localhost:3001/api/webhooks');
+    console.log(`🌐 API сервер: http://0.0.0.0:${apiPort}`);
+    console.log(`📡 Webhooks: http://0.0.0.0:${apiPort}/api/webhooks`);
     console.log('💬 Команды: /help, /task, /stats');
     console.log('🔄 Статус: Работает (Ctrl+C для остановки)');
     console.log('════════════════════════════════════════════\n');
