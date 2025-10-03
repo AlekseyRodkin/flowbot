@@ -451,6 +451,7 @@ ${motivationalMsg}`;
       Markup.button.callback('⚙️ Настройки', 'show_settings')
     ],
     [
+      Markup.button.callback('👥 Пригласить друга', 'invite'),
       Markup.button.callback('💬 Обратная связь', 'show_feedback')
     ]
   ]);

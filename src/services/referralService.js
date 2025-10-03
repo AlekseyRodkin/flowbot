@@ -11,7 +11,7 @@ class ReferralService {
   // Генерация реферальной ссылки
   generateReferralLink(userId) {
     const referralCode = this.generateReferralCode(userId);
-    return `https://t.me/${process.env.BOT_USERNAME}?start=ref_${referralCode}`;
+    return `https://t.me/${process.env.TELEGRAM_BOT_USERNAME}?start=ref_${referralCode}`;
   }
 
   // Генерация уникального кода
