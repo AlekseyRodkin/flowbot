@@ -70,11 +70,11 @@ app.use((error, req, res, next) => {
   });
 });
 
-const PORT = process.env.API_PORT || 3001;
+const PORT = process.env.PORT || process.env.API_PORT || 3001;
 
 function startApiServer() {
   return new Promise((resolve, reject) => {
-    const server = app.listen(PORT, (err) => {
+    const server = app.listen(PORT, '0.0.0.0', (err) => {
       if (err) {
         console.error('❌ Failed to start API server:', err);
         reject(err);
