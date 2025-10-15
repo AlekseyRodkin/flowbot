@@ -2,6 +2,7 @@
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 const dailyInsights = require('../content/dailyInsights');
+const { getMotivationalMessage } = require('../content/motivationalMessages');
 
 class NotificationService {
   constructor(bot, supabase, taskService, aiService, userService) {
@@ -270,21 +271,21 @@ class NotificationService {
 
   // Дневные напоминания (14:00 и 18:00)
   scheduleDayReminders() {
-    // Проверка в 14:00 - порог 30%
+    // Проверка в 14:00
     cron.schedule('0 14 * * *', async () => {
       console.log('⏰ Sending afternoon reminders (14:00)...');
-      await this.sendDayReminders(30);
+      await this.sendDayReminders('afternoon');
     });
 
-    // Проверка в 18:00 - порог 60%
+    // Проверка в 18:00
     cron.schedule('0 18 * * *', async () => {
       console.log('⏰ Sending evening reminders (18:00)...');
-      await this.sendDayReminders(60);
+      await this.sendDayReminders('evening');
     });
   }
 
   // Отправка дневных напоминаний
-  async sendDayReminders(threshold = 30) {
+  async sendDayReminders(timeOfDay) {
     const { data: users, error } = await this.supabase
       .from('users')
       .select('*')
@@ -310,25 +311,28 @@ class NotificationService {
         const total = tasks.length;
         const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-        // Отправляем напоминание только если выполнено меньше threshold%
-        if (percentage < threshold) {
-          const remaining = total - completed;
-          const message = `💪 *Не забудь про свои задачи!*\n\n` +
-            `У тебя ещё ${remaining} ${remaining === 1 ? 'задача' : remaining < 5 ? 'задачи' : 'задач'} на сегодня.\n\n` +
-            `Помни: каждая выполненная задача приближает тебя к цели!\n` +
-            `Не откладывай на потом - начни прямо сейчас! 🔥`;
+        // Получаем мотивационное сообщение
+        const motivationalMsg = getMotivationalMessage(completed, total, timeOfDay);
 
-          await this.bot.telegram.sendMessage(user.telegram_id, message, {
-            parse_mode: 'Markdown',
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '📋 Открыть задачи', callback_data: 'show_tasks' }]
-              ]
-            }
-          });
-
-          console.log(`✅ Sent day reminder to user ${user.telegram_id} (${percentage}% completed, threshold: ${threshold}%)`);
+        // Если функция вернула null - значит прогресс хороший, не беспокоим
+        if (!motivationalMsg) {
+          console.log(`✅ User ${user.telegram_id} has good progress (${percentage}%), skipping reminder`);
+          continue;
         }
+
+        // Формируем финальное сообщение
+        const message = `${motivationalMsg.emoji} *${motivationalMsg.title}*\n\n${motivationalMsg.text}`;
+
+        await this.bot.telegram.sendMessage(user.telegram_id, message, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📋 Открыть задачи', callback_data: 'show_tasks' }]
+            ]
+          }
+        });
+
+        console.log(`✅ Sent ${timeOfDay} reminder to user ${user.telegram_id} (${completed}/${total} tasks, ${percentage}%)`);
       } catch (error) {
         console.error(`Error sending day reminder to user ${user.telegram_id}:`, error);
       }
