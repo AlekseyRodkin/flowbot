@@ -84,14 +84,21 @@ class StatsHandler {
     }
   }
 
+  // Генерация emoji-графика
+  generateEmojiBar(value, max, width = 10) {
+    if (max === 0) return '⬜'.repeat(width);
+    const filled = Math.round((value / max) * width);
+    return '🟩'.repeat(filled) + '⬜'.repeat(width - filled);
+  }
+
   // Показать детальную статистику за период
   async showDetailedStats(ctx, period) {
     try {
       const user = ctx.state.user;
       const userService = ctx.state.userService;
-      
+
       const stats = await userService.getUserStats(user.id);
-      
+
       if (!stats || !stats.recentDays) {
         await ctx.answerCbQuery('Нет данных для отображения');
         return;
@@ -99,61 +106,59 @@ class StatsHandler {
 
       let message = '';
       let days = [];
-      
+
       if (period === 'weekly') {
         message = `📈 *Статистика за неделю*\n\n`;
         days = stats.recentDays.slice(0, 7);
-      } else if (period === 'monthly') {
-        message = `📊 *Статистика за месяц*\n\n`;
-        days = stats.monthlyStats;
-      }
 
-      // Создаем текстовый график
-      const maxTasks = Math.max(...days.map(d => d.completed_tasks || 0));
-      const graphHeight = 5;
-      
-      message += '```\n';
-      for (let row = graphHeight; row > 0; row--) {
-        const threshold = (maxTasks / graphHeight) * row;
-        let line = '';
-        
+        // Находим максимум для нормализации
+        const maxTasks = Math.max(...days.map(d => d.completed_tasks || 0));
+
+        // Находим лучший день
+        const bestDay = days.reduce((best, d) =>
+          (d.completed_tasks || 0) > (best.completed_tasks || 0) ? d : best
+        );
+
+        // Генерируем график по дням
         for (const day of days) {
           const completed = day.completed_tasks || 0;
-          if (completed >= threshold) {
-            line += '█ ';
-          } else {
-            line += '  ';
-          }
+          const dayName = moment(day.date).format('dd');
+          const dayNum = moment(day.date).format('DD');
+          const bar = this.generateEmojiBar(completed, maxTasks, 10);
+          const isBest = day === bestDay ? ' ⭐' : '';
+
+          message += `${dayName} ${dayNum}  ${bar}  ${completed}${isBest}\n`;
         }
-        
-        message += line + '\n';
+
+        message += `\n`;
+
+      } else if (period === 'monthly') {
+        message = `📊 *Статистика за месяц*\n\n`;
+        days = stats.monthlyStats || stats.recentDays.slice(0, 30);
       }
-      
-      // Подписи дней
-      message += '─'.repeat(days.length * 2) + '\n';
-      for (const day of days) {
-        const date = moment(day.date).format('D');
-        message += date.padStart(2) + '';
-      }
-      message += '\n```\n\n';
 
       // Статистика по периоду
       const totalCompleted = days.reduce((sum, d) => sum + (d.completed_tasks || 0), 0);
       const avgCompleted = Math.round(totalCompleted / days.length);
-      const bestDay = days.reduce((best, d) => 
+      const bestDay = days.reduce((best, d) =>
         (d.completed_tasks || 0) > (best.completed_tasks || 0) ? d : best
       );
-      
-      message += `📊 *Итоги периода:*\n`;
-      message += `Всего выполнено: ${totalCompleted} задач\n`;
-      message += `Среднее в день: ${avgCompleted} задач\n`;
-      message += `Лучший день: ${moment(bestDay.date).format('DD.MM')} (${bestDay.completed_tasks} задач)\n`;
-      
+
+      message += `💪 Всего: ${totalCompleted} задач\n`;
+      message += `🔥 Среднее: ${avgCompleted}/день\n`;
+      message += `🏆 Лучший день: ${moment(bestDay.date).format('DD.MM')} (${bestDay.completed_tasks})\n`;
+
+      // Для месячного графика добавляем активные дни
+      if (period === 'monthly') {
+        const activeDays = days.filter(d => (d.completed_tasks || 0) > 0).length;
+        message += `📈 Активных дней: ${activeDays}/${days.length}\n`;
+      }
+
       // Анализ по типам задач
       const easyTotal = days.reduce((sum, d) => sum + (d.easy_completed || 0), 0);
       const standardTotal = days.reduce((sum, d) => sum + (d.standard_completed || 0), 0);
       const hardTotal = days.reduce((sum, d) => sum + (d.hard_completed || 0), 0);
-      
+
       if (easyTotal + standardTotal + hardTotal > 0) {
         message += `\n*По типам задач:*\n`;
         message += `💚 Простых: ${easyTotal}\n`;
@@ -161,10 +166,21 @@ class StatsHandler {
         message += `❤️ Сложных: ${hardTotal}\n`;
       }
 
+      // Для месячного графика добавляем статистику по неделям
+      if (period === 'monthly' && days.length >= 7) {
+        message += `\n*По неделям:*\n`;
+
+        for (let i = 0; i < Math.ceil(days.length / 7); i++) {
+          const weekDays = days.slice(i * 7, (i + 1) * 7);
+          const weekTotal = weekDays.reduce((sum, d) => sum + (d.completed_tasks || 0), 0);
+          message += `Неделя ${i + 1}:  ${weekTotal} задач\n`;
+        }
+      }
+
       const keyboard = Markup.inlineKeyboard([
         [Markup.button.callback('◀️ Назад к статистике', 'show_stats')]
       ]);
-      
+
       await sendOrEditMessage(ctx, message, keyboard);
     } catch (error) {
       console.error('Error in showDetailedStats:', error);
