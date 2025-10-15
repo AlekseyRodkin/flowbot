@@ -119,10 +119,10 @@ bot.start(async (ctx) => {
   // Проверяем, есть ли реферальный код
   if (startParam && startParam.startsWith('ref_')) {
     const referralCode = startParam.substring(4);
-    
-    // Обрабатываем реферальную регистрацию
-    const referral = await referralService.processReferral(user.telegram_id, referralCode);
-    
+
+    // Обрабатываем реферальную регистрацию (передаем user.id, а не telegram_id!)
+    const referral = await referralService.processReferral(user.id, referralCode);
+
     if (referral) {
       await ctx.reply(
         '🎉 Отлично! Ты присоединился по приглашению друга!\n\n' +
