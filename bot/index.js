@@ -82,6 +82,7 @@ bot.use(async (ctx, next) => {
       // Используем getOrCreateUser для автоматического создания если нужно
       const user = await userService.getOrCreateUser(ctx.from);
       ctx.state.user = user;
+      ctx.state.userService = userService;
       ctx.state.taskService = taskService;
     } catch (error) {
       logger.error('Error loading user:', error);
