@@ -5,8 +5,9 @@ const { sendOrEditMessage } = require('../utils/messageUtils');
 const { g, getWord } = require('../utils/genderUtils');
 
 class TaskHandler {
-  constructor() {
+  constructor(supabase = null) {
     this.tasksPerPage = 10;
+    this.supabase = supabase;
   }
 
   // Показать задачи на сегодня
@@ -116,18 +117,36 @@ class TaskHandler {
       setImmediate(async () => {
         this.checkAchievements(stats);
 
-        // Проверка выполнения ВСЕХ задач на сегодня
+        // Проверка выполнения ВСЕХ задач на сегодня (кроме магической)
         // Получаем реальное количество задач из БД, а не из статистики
         const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
         const allTasks = await taskService.getUserTasksForDate(task.telegram_id, today);
-        const totalTasks = allTasks.length;
-        const completedTasks = allTasks.filter(t => t.completed).length;
 
-        console.log(`📊 Task completion check: ${completedTasks}/${totalTasks} tasks completed`);
+        // Исключаем магическую задачу из подсчёта
+        const regularTasks = allTasks.filter(t => t.task_type !== 'magic');
+        const totalTasks = regularTasks.length;
+        const completedTasks = regularTasks.filter(t => t.completed).length;
+
+        console.log(`📊 Task completion check: ${completedTasks}/${totalTasks} regular tasks completed (excluding magic)`);
 
         if (completedTasks === totalTasks && totalTasks > 0) {
-          console.log(`🎉 Sending epic completion for user ${task.telegram_id}`);
+          console.log(`🎉 All tasks completed! Incrementing user level`);
           const user = ctx.state.user; // Получаем пользователя из контекста
+
+          // Увеличиваем уровень пользователя при завершении всех задач
+          const currentLevel = user.level || 1;
+          const nextLevel = currentLevel + 1;
+
+          await this.supabase
+            .from('users')
+            .update({ level: nextLevel })
+            .eq('telegram_id', task.telegram_id);
+
+          console.log(`📈 User ${task.telegram_id} level increased: ${currentLevel} → ${nextLevel}`);
+
+          // Обновляем user object для использования в сообщении
+          user.level = nextLevel;
+
           this.sendEpicCompletion(ctx, stats, user).catch(err =>
             console.error('Error sending epic completion:', err)
           );
@@ -853,5 +872,6 @@ ${progressText}`;
 }
 
 module.exports = {
-  taskHandler: new TaskHandler()
+  TaskHandler,
+  taskHandler: null // будет инициализирован в bot/index.js
 };

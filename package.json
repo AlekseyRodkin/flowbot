@@ -8,7 +8,9 @@
     "dev": "nodemon bot/index.js",
     "test": "jest",
     "db:migrate": "node database/migrate.js",
-    "migrate:id-fix": "node scripts/migrate-to-telegram-id.js"
+    "migrate:id-fix": "node scripts/migrate-to-telegram-id.js",
+    "pre-deploy": "node scripts/analyze-changes.js",
+    "deploy-check": "npm run pre-deploy && echo '\n✅ Готов к деплою! Прочитай .claude/pre-deploy-checklist.md'"
   },
   "keywords": [
     "telegram",

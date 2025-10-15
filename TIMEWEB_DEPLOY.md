@@ -23,6 +23,15 @@ envs: {
 
 ### Алгоритм деплоя FlowBot на Timeweb
 
+**Шаг 0: Проверка перед деплоем**
+```bash
+# ОБЯЗАТЕЛЬНО запустить перед каждым деплоем!
+npm run deploy-check
+
+# Прочитать чеклист
+cat .claude/pre-deploy-checklist.md
+```
+
 1. **Прочитать .env файл:**
    ```bash
    cat .env

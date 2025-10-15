@@ -7,7 +7,7 @@ const moment = require('moment-timezone');
 
 // Import handlers - исправляем импорты
 const startHandler = require('../src/handlers/startHandler');
-const { taskHandler } = require('../src/handlers/taskHandler');
+const { TaskHandler } = require('../src/handlers/taskHandler');
 const { statsHandler } = require('../src/handlers/statsHandler');
 const { settingsHandler } = require('../src/handlers/settingsHandler');
 const { InviteHandler } = require('../src/handlers/inviteHandler');
@@ -70,6 +70,7 @@ const viralService = new ViralService(supabase, bot, referralService);
 const feedbackService = new FeedbackService(supabase, bot);
 
 // Initialize handlers
+const taskHandler = new TaskHandler(supabase);
 const inviteHandler = new InviteHandler(referralService, userService, supabase);
 const feedbackHandler = new FeedbackHandler(feedbackService);
 const donationHandler = new DonationHandler();
