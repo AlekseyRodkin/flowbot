@@ -525,6 +525,38 @@ const confirmReset = async (ctx, userService, taskService = null) => {
       console.warn('⚠️ taskService not provided - tasks will NOT be deleted!');
     }
 
+    // Получаем supabase через userService
+    const supabase = userService.supabase;
+
+    // Удаляем статистику пользователя
+    console.log('🗑️ Deleting user statistics...');
+    await supabase
+      .from('daily_stats')
+      .delete()
+      .eq('telegram_id', userId);
+    console.log('✅ Statistics deleted');
+
+    // Удаляем стрик пользователя
+    console.log('🗑️ Deleting user streak...');
+    await supabase
+      .from('streaks')
+      .delete()
+      .eq('telegram_id', userId);
+    console.log('✅ Streak deleted');
+
+    // Создаем новую пустую запись стрика
+    console.log('➕ Creating new empty streak...');
+    await supabase
+      .from('streaks')
+      .insert([{
+        telegram_id: userId,
+        current_streak: 0,
+        longest_streak: 0,
+        total_days: 0,
+        created_at: new Date().toISOString()
+      }]);
+    console.log('✅ New streak created');
+
     // Затем сбрасываем пользователя к начальному состоянию
     await userService.updateUser(userId, {
       level: 1,  // День 1
