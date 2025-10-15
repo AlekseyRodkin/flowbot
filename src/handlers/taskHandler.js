@@ -104,11 +104,20 @@ class TaskHandler {
         return;
       }
 
-      // 2. Получаем количество выполненных задач для мотивационного сообщения
-      const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
-      const allTasksNow = await taskService.getUserTasksForDate(task.telegram_id, today);
-      const completedCount = allTasksNow.filter(t => t.completed).length;
-      const motivationalMsg = this.getMotivationalMessage(completedCount);
+      // 2. Проверяем тип задачи для специального поздравления
+      let motivationalMsg;
+      if (task.task_type === 'magic') {
+        // Для магической задачи - особое поздравление
+        const user = ctx.state.user;
+        await ctx.reply(this.getMagicTaskMessage(user), { parse_mode: 'Markdown' });
+        motivationalMsg = '✨ Магия!';
+      } else {
+        // Для обычных задач - мотивационное сообщение по количеству
+        const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
+        const allTasksNow = await taskService.getUserTasksForDate(task.telegram_id, today);
+        const completedCount = allTasksNow.filter(t => t.completed).length;
+        motivationalMsg = this.getMotivationalMessage(completedCount);
+      }
 
       // 3. СРАЗУ отправить мотивационный ответ пользователю
       await ctx.answerCbQuery(motivationalMsg);
@@ -301,6 +310,19 @@ class TaskHandler {
     };
 
     return messages[completedCount] || `✅ Выполнено ${completedCount} задач!`;
+  }
+
+  // Специальное поздравление для магической задачи
+  getMagicTaskMessage(user) {
+    return `✨🎉 *МАГИЯ СВЕРШИЛАСЬ!* 🎉✨
+
+Ты ${g(user, 'совершил', 'совершила')} нечто волшебное сегодня!
+
+💫 Чудеса случаются каждый день —
+ты только что ${g(user, 'создал', 'создала')} одно из них!
+
+🌟 В жизни так много волшебства,
+нужно только открыть глаза и ${g(user, 'поверить', 'поверить')}!`;
   }
 
   // Обновление сообщения с задачами
