@@ -98,6 +98,55 @@ cat .claude/pre-deploy-checklist.md
 
 ### Проблемы и решения
 
+#### ❌ Проблема: MCP инструмент возвращает 400 ошибку
+
+**Симптомы:**
+- `mcp__timeweb-mcp-server__create_timeweb_app` возвращает ошибку 400
+- Сообщение: "Invalid framework for the given app type"
+
+**Возможные причины:**
+1. API Timeweb ожидает параметр `framework` (строка), но MCP инструмент может передавать `framework_id`
+2. В комментарии (`comment`) использован запрещённый символ (разрешены только: `letters, numbers, , . ) ( - & # [ ] _`)
+3. Символ `:` (двоеточие) запрещён в комментариях
+
+**Решение: Использовать прямой curl запрос к API**
+
+1. Создать JSON файл с параметрами (например `/tmp/timeweb-app.json`):
+   ```json
+   {
+     "name": "FlowBot-v5",
+     "comment": "FlowBot v5 - описание без двоеточия",
+     "type": "backend",
+     "provider_id": "ваш_provider_id",
+     "repository_id": "ваш_repository_id",
+     "preset_id": 1631,
+     "framework": "express",
+     "commit_sha": "полный_SHA_коммита",
+     "branch_name": "main",
+     "build_cmd": "npm install",
+     "run_cmd": "npm start",
+     "is_auto_deploy": false,
+     "envs": {
+       "TELEGRAM_BOT_TOKEN": "...",
+       "SUPABASE_URL": "...",
+       // ... все остальные переменные
+     }
+   }
+   ```
+
+2. Отправить через curl:
+   ```bash
+   curl -X POST "https://api.timeweb.cloud/api/v1/apps" \
+     -H "Authorization: Bearer YOUR_TIMEWEB_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d @/tmp/timeweb-app.json
+   ```
+
+**Важно:**
+- Параметр должен быть `"framework": "express"`, не `framework_id`
+- В `comment` нельзя использовать символ `:`
+- Если первый деплой failed с ошибкой Docker, попробуйте ручной редеплой через панель Timeweb
+
 #### ❌ Проблема: "Unable to detect application port"
 
 **Причины:**
@@ -157,5 +206,5 @@ cat .claude/pre-deploy-checklist.md
 ---
 
 **Дата создания:** 2025-10-03
-**Последнее обновление:** 2025-10-03
+**Последнее обновление:** 2025-10-15
 **Проект:** FlowBot - Telegram bot для продуктивности

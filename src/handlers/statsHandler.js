@@ -21,10 +21,12 @@ class StatsHandler {
       
       // Общие показатели
       message += `*📅 Общий прогресс:*\n`;
-      if (user.level <= 30) {
-        message += `День программы: ${user.level}/30\n`;
+      // День программы = количество активных дней, а не user.level
+      const currentDay = stats.totalDays || user.level;
+      if (currentDay <= 30) {
+        message += `День программы: ${currentDay}/30\n`;
       } else {
-        message += `День программы: ${user.level} (завершена! 🎉)\n`;
+        message += `День программы: ${currentDay} (завершена! 🎉)\n`;
       }
       message += `Всего выполнено задач: ${stats.totalTasks}\n`;
       message += `Активных дней: ${stats.totalDays}\n`;
