@@ -510,22 +510,32 @@ const resetProgress = async (ctx, userService) => {
 };
 
 // Подтверждение сброса
-const confirmReset = async (ctx, userService) => {
+const confirmReset = async (ctx, userService, taskService = null) => {
   try {
     const userId = ctx.from.id;
-    
+
     console.log('🔄 Resetting user progress for:', userId);
-    
-    // Полностью сбрасываем пользователя к начальному состоянию
+
+    // ВАЖНО: Сначала удаляем ВСЕ задачи пользователя
+    if (taskService) {
+      console.log('🗑️ Deleting all user tasks...');
+      await taskService.deleteAllUserTasks(userId);
+      console.log('✅ All tasks deleted');
+    } else {
+      console.warn('⚠️ taskService not provided - tasks will NOT be deleted!');
+    }
+
+    // Затем сбрасываем пользователя к начальному состоянию
     await userService.updateUser(userId, {
       level: 1,  // День 1
-      onboarding_completed: false  // Пройти онбординг заново
+      onboarding_completed: false,  // Пройти онбординг заново
+      current_streak: 0  // Сброс стрика
     });
-    
+
     console.log('✅ User reset completed');
-    
+
     await ctx.answerCbQuery('Прогресс сброшен!');
-    
+
     // Начинаем онбординг заново
     await sendWelcomeMessage(ctx);
     await sendOnboardingStep1(ctx);

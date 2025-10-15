@@ -1040,7 +1040,7 @@ bot.on('callback_query', async (ctx) => {
       console.log(`🔍 CONFIRM HANDLER: action='confirm', params=${JSON.stringify(params)}`);
       if (params[0] === 'reset') {
         console.log('🔄 Executing reset confirmation');
-        await startHandler.confirmReset(ctx, userService);
+        await startHandler.confirmReset(ctx, userService, taskService);
       } else if (params[0] === 'delete') {
         if (params[1]) {
           // Удаление задачи
