@@ -4,11 +4,12 @@ const moment = require('moment-timezone');
 const dailyInsights = require('../content/dailyInsights');
 
 class NotificationService {
-  constructor(bot, supabase, taskService, aiService) {
+  constructor(bot, supabase, taskService, aiService, userService) {
     this.bot = bot;
     this.supabase = supabase;
     this.taskService = taskService;
     this.aiService = aiService;
+    this.userService = userService;
     this.scheduledJobs = new Map();
   }
 
@@ -98,8 +99,19 @@ class NotificationService {
 
   // Отправка задач конкретному пользователю
   async sendTasksToUser(user) {
-    // Определяем конфигурацию задач на основе уровня
-    const taskConfig = this.getTaskConfig(user.level);
+    // Получаем реальное количество активных дней из статистики
+    let currentDay = user.level || 1;
+    try {
+      const stats = await this.userService.getUserStats(user.telegram_id);
+      if (stats && stats.totalDays !== undefined) {
+        currentDay = stats.totalDays || 1;
+      }
+    } catch (error) {
+      console.error('Error getting user stats for morning tasks:', error);
+    }
+
+    // Определяем конфигурацию задач на основе дня программы
+    const taskConfig = this.getTaskConfig(currentDay);
 
     // Генерируем задачи через AI
     const tasks = await this.aiService.generateTasks(taskConfig, user);
@@ -107,8 +119,8 @@ class NotificationService {
     // Сохраняем задачи в базу данных
     await this.taskService.saveDailyTasks(user.id, tasks);
 
-    // Формируем сообщение с ТЕКУЩИМ уровнем (до инкремента)
-    const message = this.formatTasksMessage(tasks, user.level);
+    // Формируем сообщение с реальным днем программы
+    const message = this.formatTasksMessage(tasks, currentDay);
 
     // Отправляем сообщение
     await this.bot.telegram.sendMessage(user.telegram_id, message, {

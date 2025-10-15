@@ -81,12 +81,23 @@ async function sendMorningTasksNow() {
 
   console.log(`📈 User level increased: ${level} → ${nextLevel}`);
 
+  // Получаем реальное количество активных дней из статистики
+  let currentDay = level;
+  try {
+    const { data: stats } = await supabase.rpc('get_user_stats', { user_telegram_id: user.telegram_id });
+    if (stats && stats.length > 0 && stats[0].total_days !== undefined) {
+      currentDay = stats[0].total_days || 1;
+    }
+  } catch (error) {
+    console.error('Error getting user stats:', error);
+  }
+
   // Формируем сообщение
   let message = '🌅 Доброе утро! Твой Flow List на сегодня:\n\n';
-  if (level <= 15) {
-    message += `📅 День ${level} из 15\n\n`;
+  if (currentDay <= 15) {
+    message += `📅 День ${currentDay} из 15\n\n`;
   } else {
-    message += `📅 День ${level} (ты в потоке! 🎉)\n\n`;
+    message += `📅 День ${currentDay} (ты в потоке! 🎉)\n\n`;
   }
   
   // Группируем задачи по типам

@@ -28,13 +28,27 @@ class TaskHandler {
 
       // Группируем задачи по типам
       const tasksByType = this.groupTasksByType(tasks);
-      
+
+      // Получаем реальное количество активных дней из статистики
+      const userService = ctx.state.userService;
+      let currentDay = user.level || 1;
+      if (userService) {
+        try {
+          const stats = await userService.getUserStats(user.telegram_id);
+          if (stats && stats.totalDays !== undefined) {
+            currentDay = stats.totalDays || 1;
+          }
+        } catch (error) {
+          console.error('Error getting user stats for task list:', error);
+        }
+      }
+
       // Формируем сообщение
       let message = `📅 *Мои задачи на сегодня*\n`;
-      if (user.level <= 30) {
-        message += `День ${user.level} из 30\n\n`;
+      if (currentDay <= 30) {
+        message += `День ${currentDay} из 30\n\n`;
       } else {
-        message += `День ${user.level} (программа завершена! 🎉)\n\n`;
+        message += `День ${currentDay} (программа завершена! 🎉)\n\n`;
       }
       
       // Счетчики выполнения
@@ -651,11 +665,25 @@ _Ты это ${g(user, 'заслужил', 'заслужила')}!_
   // Показать выбор режима создания задач
   async showTaskCreationModeSelection(ctx, user, editMessage = false) {
     try {
+      // Получаем реальное количество активных дней из статистики
+      const userService = ctx.state.userService;
+      let currentDay = user.level || 1;
+      if (userService) {
+        try {
+          const stats = await userService.getUserStats(user.telegram_id);
+          if (stats && stats.totalDays !== undefined) {
+            currentDay = stats.totalDays || 1;
+          }
+        } catch (error) {
+          console.error('Error getting user stats for mode selection:', error);
+        }
+      }
+
       let progressText;
-      if (user.level <= 15) {
-        progressText = `День ${user.level} из 15`;
+      if (currentDay <= 15) {
+        progressText = `День ${currentDay} из 15`;
       } else {
-        progressText = `День ${user.level} (ты в потоке! 🎉)`;
+        progressText = `День ${currentDay} (ты в потоке! 🎉)`;
       }
 
       const modeText = `🎯 *Как формируем задачи на сегодня?*

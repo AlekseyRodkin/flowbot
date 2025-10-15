@@ -63,7 +63,7 @@ bot.use(supabaseSession(supabase));
 const userService = new UserService(supabase);
 const taskService = new TaskService(supabase);
 const aiService = new AIService();
-const notificationService = new NotificationService(bot, supabase, taskService, aiService);
+const notificationService = new NotificationService(bot, supabase, taskService, aiService, userService);
 const referralService = new ReferralService(supabase, bot);
 const customTaskService = new CustomTaskService(supabase);
 const viralService = new ViralService(supabase, bot, referralService);
@@ -1119,26 +1119,36 @@ bot.on('callback_query', async (ctx) => {
         // Режим: пользователь создает вручную
         try {
           const user = ctx.state.user;
-          const level = user.level || 1;
-          
-          // Определяем состав задач на основе уровня
+
+          // Получаем реальное количество активных дней из статистики
+          let currentDay = user.level || 1;
+          try {
+            const stats = await userService.getUserStats(user.telegram_id);
+            if (stats && stats.totalDays !== undefined) {
+              currentDay = stats.totalDays || 1;
+            }
+          } catch (error) {
+            console.error('Error getting user stats for manual mode:', error);
+          }
+
+          // Определяем состав задач на основе дня программы
           let requiredTasks = {};
           // Этап 1 (Дни 1-5): Easy - 30 очень простых дел
           // Этап 2 (Дни 6-10): Standard - 20 простых + 10 стандартных (БЕЗ сложных!)
           // Этап 3 (Дни 11-15+): Hard - 10 простых + 12 стандартных + 8 сложных
-          if (level <= 5) {
+          if (currentDay <= 5) {
             requiredTasks = { easy: 30, standard: 0, hard: 0 };
-          } else if (level <= 10) {
+          } else if (currentDay <= 10) {
             requiredTasks = { easy: 20, standard: 10, hard: 0 };
           } else {
             requiredTasks = { easy: 10, standard: 12, hard: 8 };
           }
-          
+
           let message = `✏️ *Ручное создание списка задач*\n\n`;
-          if (level <= 15) {
-            message += `День ${level} из 15\n\n`;
+          if (currentDay <= 15) {
+            message += `День ${currentDay} из 15\n\n`;
           } else {
-            message += `День ${level} (ты в потоке! 🎉)\n\n`;
+            message += `День ${currentDay} (ты в потоке! 🎉)\n\n`;
           }
           message += `Вам нужно создать:\n`;
           message += `💚 Простые задачи: ${requiredTasks.easy}\n`;

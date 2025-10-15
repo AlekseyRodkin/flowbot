@@ -401,13 +401,26 @@ const getMotivationalMessage = (percentage) => {
 
 // Главное меню для существующих пользователей
 const sendMainMenu = async (ctx, user, editMessage = false, taskService = null) => {
-  // День программы берется из user.level (1-15+)
-  const currentDay = user.level || 1;
+  // День программы = количество активных дней из статистики
+  let currentDay = user.level || 1; // fallback на user.level
+
+  // Пытаемся получить реальное количество активных дней
+  const userService = ctx.state.userService;
+  if (userService) {
+    try {
+      const stats = await userService.getUserStats(user.telegram_id);
+      if (stats && stats.totalDays !== undefined) {
+        currentDay = stats.totalDays || 1; // используем количество дней с выполненными задачами
+      }
+    } catch (error) {
+      console.error('Error getting user stats for menu:', error);
+    }
+  }
 
   // Получаем стрик из базы данных
   const streak = user.current_streak || 0;
 
-  console.log(`📊 Showing menu - Day: ${currentDay}, Streak: ${streak} for user: ${user.telegram_id}`);
+  console.log(`📊 Showing menu - Day: ${currentDay} (active days), Streak: ${streak} for user: ${user.telegram_id}`);
 
   // Формируем компактный прогресс день + стрик
   let progressLine;
