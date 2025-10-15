@@ -270,7 +270,7 @@ class NotificationService {
     }
   }
 
-  // Дневные напоминания (14:00 и 18:00)
+  // Дневные напоминания (14:00 и 18:40 для теста)
   scheduleDayReminders() {
     // Проверка в 14:00
     cron.schedule('0 14 * * *', async () => {
@@ -278,9 +278,9 @@ class NotificationService {
       await this.sendDayReminders('afternoon');
     });
 
-    // Проверка в 18:00
-    cron.schedule('0 18 * * *', async () => {
-      console.log('⏰ Sending evening reminders (18:00)...');
+    // Проверка в 18:40 (временно для теста)
+    cron.schedule('40 18 * * *', async () => {
+      console.log('⏰ Sending evening reminders (18:40)...');
       await this.sendDayReminders('evening');
     });
   }
