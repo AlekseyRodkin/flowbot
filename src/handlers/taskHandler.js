@@ -637,7 +637,7 @@ ${progressText}`;
       const keyboard = Markup.inlineKeyboard([
         [
           Markup.button.callback('✨ Создай для меня', 'mode_ai_generate'),
-          Markup.button.callback('✏️ Сам составлю', 'mode_manual_create')
+          Markup.button.callback(`✏️ ${g(user, 'Сам', 'Сама')} составлю`, 'mode_manual_create')
         ]
       ]);
       
