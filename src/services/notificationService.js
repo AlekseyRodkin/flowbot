@@ -119,7 +119,7 @@ class NotificationService {
     const tasks = await this.aiService.generateTasks(taskConfig, user);
 
     // Сохраняем задачи в базу данных
-    await this.taskService.saveDailyTasks(user.id, tasks);
+    await this.taskService.saveDailyTasks(user.telegram_id, tasks);
 
     // Формируем сообщение с реальным днем программы
     const message = this.formatTasksMessage(tasks, currentDay);
@@ -137,7 +137,7 @@ class NotificationService {
     await this.supabase
       .from('users')
       .update({ level: nextLevel })
-      .eq('id', user.id);
+      .eq('telegram_id', user.telegram_id);
 
     console.log(`📈 User ${user.telegram_id} level increased: ${user.level} → ${nextLevel}`);
   }
