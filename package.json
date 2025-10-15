@@ -10,7 +10,8 @@
     "db:migrate": "node database/migrate.js",
     "migrate:id-fix": "node scripts/migrate-to-telegram-id.js",
     "pre-deploy": "node scripts/analyze-changes.js",
-    "deploy-check": "npm run pre-deploy && echo '\n✅ Готов к деплою! Прочитай .claude/pre-deploy-checklist.md'"
+    "deploy-check": "npm run pre-deploy && echo '\n✅ Готов к деплою! Прочитай .claude/pre-deploy-checklist.md'",
+    "deploy:timeweb": "node scripts/deploy-timeweb.js"
   },
   "keywords": [
     "telegram",

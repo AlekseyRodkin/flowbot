@@ -30,6 +30,7 @@ class UserService {
         username: username || null,
         first_name: first_name || 'Пользователь',
         last_name: last_name || null,
+        gender: null, // Будет установлено при онбординге
         level: 1,
         subscription_type: 'free',
         morning_hour: 8,

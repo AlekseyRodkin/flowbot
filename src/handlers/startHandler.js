@@ -125,6 +125,11 @@ const setUserGender = async (ctx, userService, gender) => {
       gender: gender
     });
 
+    // Обновляем user в контексте
+    if (ctx.state.user) {
+      ctx.state.user.gender = gender;
+    }
+
     console.log(`✅ User gender set to ${gender} for user:`, userId);
 
     const responseText = gender === 'male' ? 'Отлично! 👨' : 'Отлично! 👩';
