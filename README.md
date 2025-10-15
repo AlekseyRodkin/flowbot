@@ -337,6 +337,96 @@ pm2 restart webhook
 pm2 stop flowbot
 ```
 
+#### Доступ к VPS через MCP (Model Context Protocol)
+
+Для удобного управления VPS через Claude Code настроен SSH MCP сервер.
+
+**Что такое MCP:**
+- MCP (Model Context Protocol) - стандарт для подключения AI-ассистентов к внешним системам
+- Позволяет Claude напрямую выполнять команды на удалённых серверах
+- Используется для автоматизации деплоя, мониторинга и отладки
+
+**Используемый MCP сервер:**
+- **ssh-mcp** от [tufantunc](https://github.com/tufantunc/ssh-mcp)
+- Обеспечивает безопасное SSH-подключение к VPS
+- Поддерживает выполнение команд и чтение файлов
+
+**Конфигурация для Claude Desktop:**
+
+Файл `~/.claude/claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "ssh-vps": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "ssh-mcp",
+        "--host=5.129.224.93",
+        "--port=22",
+        "--user=root",
+        "--password=eyT@w7pZQ7sEzr",
+        "--timeout=60000"
+      ]
+    }
+  }
+}
+```
+
+**Конфигурация для Claude Code:**
+
+MCP серверы НЕ синхронизируются автоматически между Claude Desktop и Claude Code. Для добавления в Claude Code используйте команду:
+
+```bash
+claude mcp add --transport stdio ssh-vps -- npx -y ssh-mcp \
+  --host=5.129.224.93 \
+  --port=22 \
+  --user=root \
+  --password=eyT@w7pZQ7sEzr \
+  --timeout=60000
+```
+
+**Возможности через MCP:**
+- Выполнение команд на VPS (через `sshpass`)
+- Проверка статуса PM2 процессов
+- Просмотр логов в реальном времени
+- Обновление конфигурации
+- Мониторинг состояния сервера
+
+**Альтернативные способы подключения:**
+
+Если MCP не настроен, можно использовать стандартный SSH:
+```bash
+ssh root@5.129.224.93
+# или
+sshpass -p 'eyT@w7pZQ7sEzr' ssh root@5.129.224.93
+```
+
+**Примеры использования через MCP:**
+
+Claude Code может выполнять команды напрямую через MCP:
+```bash
+# Проверить статус
+pm2 status
+
+# Просмотр логов последнего деплоя
+pm2 logs webhook --lines 50 --nostream
+
+# Проверить использование ресурсов
+top -bn1 | head -20
+
+# Проверить версию Node.js
+node --version
+```
+
+**Безопасность:**
+
+⚠️ **Важно:** Пароль хранится в конфигурации MCP. Для production рекомендуется:
+1. Использовать SSH-ключи вместо пароля
+2. Ограничить доступ по IP через firewall
+3. Настроить sudo вместо root-доступа
+4. Использовать отдельного пользователя для деплоя
+
 ### Heroku (альтернатива)
 ```bash
 heroku create flowbot-app
