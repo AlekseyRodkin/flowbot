@@ -164,14 +164,187 @@ npm run format
 
 ## 🚀 Деплой
 
-### Heroku
+### VPS (рекомендуется)
+
+Бот развёрнут на VPS с автоматическим деплоем через GitHub webhooks.
+
+**Текущий деплой:**
+- VPS: Ubuntu 22.04.5 LTS (5.129.224.93)
+- Node.js 18.20.8 (через nvm)
+- PM2 6.0.13 для управления процессами
+- GitHub webhook для автоматического обновления
+
+**Структура на VPS:**
+```
+/root/flowbot/           # Репозиторий
+/root/flowbot/ecosystem.config.js  # PM2 конфигурация
+/root/webhook/           # Webhook listener
+```
+
+**Процессы PM2:**
+- `flowbot` - основной бот-процесс
+- `webhook` - слушатель GitHub webhooks на порту 3000
+
+#### Первоначальная настройка VPS
+
+1. **Установите Node.js через nvm**
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.0/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm install 18
+nvm use 18
+nvm alias default 18
+```
+
+2. **Установите PM2 и Git**
+```bash
+npm install -g pm2
+apt-get update && apt-get install -y git
+```
+
+3. **Клонируйте репозиторий**
+```bash
+cd /root
+git clone https://github.com/AlekseyRodkin/flowbot.git
+cd flowbot
+npm install
+```
+
+4. **Создайте ecosystem.config.js**
+```javascript
+module.exports = {
+  apps: [{
+    name: 'flowbot',
+    script: 'bot/index.js',
+    cwd: '/root/flowbot',
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '1G',
+    env: {
+      TELEGRAM_BOT_TOKEN: 'ваш_токен',
+      TELEGRAM_BOT_USERNAME: 'FlowList_Bot',
+      SUPABASE_URL: 'ваш_supabase_url',
+      SUPABASE_SERVICE_KEY: 'ваш_service_key',
+      SUPABASE_ANON_KEY: 'ваш_anon_key',
+      OPENAI_API_KEY: 'ваш_openai_key',
+      OPENAI_MODEL: 'gpt-4o-mini',
+      NODE_ENV: 'production',
+      LOG_LEVEL: 'info',
+      DEFAULT_TIMEZONE: 'Europe/Moscow',
+      ADMIN_TELEGRAM_IDS: 'ваш_telegram_id',
+      ADMIN_TELEGRAM_ID: 'ваш_telegram_id',
+      ENABLE_AI_GENERATION: 'true',
+      ENABLE_PAYMENTS: 'false',
+      ENABLE_ANALYTICS: 'false',
+      MAX_DAILY_TASKS: '30',
+      BOT_USERNAME: 'FlowList_Bot'
+    }
+  }]
+};
+```
+
+5. **Создайте webhook listener**
+```bash
+mkdir -p /root/webhook
+cd /root/webhook
+npm init -y
+npm install express
+```
+
+Создайте `/root/webhook/index.js`:
+```javascript
+const express = require("express");
+const { exec } = require("child_process");
+const app = express();
+
+app.use(express.json());
+
+app.post("/webhook", (req, res) => {
+  console.log("📥 Received GitHub webhook:", new Date().toISOString());
+
+  const command = "cd /root/flowbot && git pull && export NVM_DIR=\"$HOME/.nvm\" && [ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\" && npm install && pm2 restart ecosystem.config.js";
+
+  exec(command, (error, stdout, stderr) => {
+    if (error) {
+      console.error("❌ Deployment error:", error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    console.log("✅ Deployment successful");
+    res.json({ success: true, message: "Deployment completed" });
+  });
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Webhook listener running on port ${PORT}`);
+});
+```
+
+6. **Запустите процессы через PM2**
+```bash
+cd /root/flowbot
+pm2 start ecosystem.config.js
+
+cd /root/webhook
+pm2 start index.js --name webhook
+
+pm2 save
+pm2 startup
+```
+
+#### Настройка GitHub Webhook
+
+1. Откройте настройки репозитория на GitHub
+2. Перейдите в **Settings → Webhooks → Add webhook**
+3. Настройте webhook:
+   - **Payload URL:** `http://your-vps-ip:3000/webhook`
+   - **Content type:** `application/json`
+   - **Events:** Выберите "Just the push event"
+   - **Active:** ✓
+
+#### Автоматический деплой
+
+После настройки каждый `git push` в main ветку автоматически:
+1. Отправляет webhook на VPS
+2. Выполняет `git pull` для получения изменений
+3. Устанавливает новые зависимости (`npm install`)
+4. Перезапускает бота через PM2 с правильными переменными окружения
+
+**Важно:** ecosystem.config.js решает проблему с dotenv - переменные окружения загружаются PM2 напрямую, а не через .env файл.
+
+#### Управление PM2
+
+```bash
+# Проверить статус
+pm2 status
+
+# Просмотр логов
+pm2 logs flowbot
+pm2 logs webhook
+
+# Перезапуск
+pm2 restart flowbot
+pm2 restart webhook
+
+# Остановка
+pm2 stop flowbot
+```
+
+### Heroku (альтернатива)
 ```bash
 heroku create flowbot-app
 heroku addons:create heroku-redis:hobby-dev
 git push heroku main
 ```
 
-### Docker
+### Docker (альтернатива)
 ```bash
 docker build -t flowbot .
 docker run -d --env-file .env flowbot
@@ -188,6 +361,52 @@ docker run -d --env-file .env flowbot
 Логи сохраняются в:
 - `error.log` - ошибки
 - `combined.log` - все события
+- PM2 логи на VPS: `/root/.pm2/logs/`
+
+## 🔧 Решение проблем
+
+### Telegram 401 Unauthorized после обновления токена
+
+**Проблема:** После обновления `TELEGRAM_BOT_TOKEN` в `.env` файле бот продолжает показывать ошибку 401.
+
+**Причина:** `dotenv` загружает переменные окружения только один раз при запуске процесса. PM2 restart не подхватывает новые значения из `.env`.
+
+**Решение:** Используйте `ecosystem.config.js` для явного указания переменных окружения:
+
+1. Создайте файл `ecosystem.config.js` (см. раздел Деплой)
+2. Укажите все переменные в секции `env`
+3. Перезапустите через PM2:
+```bash
+pm2 delete flowbot
+pm2 start ecosystem.config.js
+pm2 save
+```
+
+### Telegram 409 Conflict: terminated by other getUpdates
+
+**Проблема:** Бот показывает ошибку "Conflict: terminated by other getUpdates request".
+
+**Причина:** Другой экземпляр бота с тем же токеном уже запущен (например, на другом сервере).
+
+**Решение:**
+1. Проверьте все запущенные экземпляры бота
+2. Остановите старые экземпляры
+3. Удалите webhook (если был настроен):
+```bash
+curl "https://api.telegram.org/bot<YOUR_TOKEN>/deleteWebhook?drop_pending_updates=true"
+```
+4. Как крайняя мера - создайте новый бот через @BotFather и обновите токен
+
+### PM2 процесс не перезапускается после обновления
+
+**Проблема:** После `git pull` изменения не применяются.
+
+**Решение:** Убедитесь, что webhook выполняет:
+```bash
+pm2 restart ecosystem.config.js  # НЕ просто "pm2 restart flowbot"
+```
+
+Это гарантирует, что PM2 перечитает конфигурацию с переменными окружения.
 
 ## 🤝 Вклад в проект
 
