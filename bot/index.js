@@ -1051,10 +1051,10 @@ bot.on('callback_query', async (ctx) => {
           try {
             console.log('🗑️ Подтверждение удаления аккаунта для пользователя:', ctx.from.id);
             const user = ctx.state.user;
-            
+
             await taskService.deleteAllUserTasks(user.telegram_id);
             await userService.deleteUser(user.telegram_id);
-            
+
             await ctx.answerCbQuery('🗑️ Аккаунт удален');
             await ctx.editMessageText(
               '🗑️ *Аккаунт полностью удален*\n\n' +
@@ -1066,6 +1066,31 @@ bot.on('callback_query', async (ctx) => {
             console.error('❌ Ошибка удаления аккаунта:', error.message);
             await ctx.answerCbQuery('Ошибка удаления аккаунта');
           }
+        }
+      } else if (params[0] === 'bulk') {
+        // Обработка массовых операций
+        const user = ctx.state.user;
+        try {
+          if (params[1] === 'complete' && params[2] === 'all') {
+            await taskService.bulkCompleteAllTasks(user.telegram_id);
+            await taskHandler.updateTaskMessage(ctx, taskService, user.telegram_id);
+            await ctx.answerCbQuery('✅ Все задачи отмечены как выполненные!');
+          } else if (params[1] === 'uncomplete' && params[2] === 'all') {
+            await taskService.bulkUncompleteAllTasks(user.telegram_id);
+            await taskHandler.updateTaskMessage(ctx, taskService, user.telegram_id);
+            await ctx.answerCbQuery('⬜ Отметки сняты со всех задач!');
+          } else if (params[1] === 'delete' && params[2] === 'completed') {
+            const deleted = await taskService.bulkDeleteCompletedTasks(user.telegram_id);
+            await taskHandler.updateTaskMessage(ctx, taskService, user.telegram_id);
+            await ctx.answerCbQuery(`🗑️ Удалено ${deleted.length} выполненных задач!`);
+          } else if (params[1] === 'shuffle' && params[2] === 'tasks') {
+            await taskService.shuffleTasksOrder(user.telegram_id);
+            await taskHandler.updateTaskMessage(ctx, taskService, user.telegram_id);
+            await ctx.answerCbQuery('🔄 Порядок задач перемешан!');
+          }
+        } catch (error) {
+          console.error('❌ Ошибка массового действия:', error.message);
+          await ctx.answerCbQuery('Ошибка выполнения действия');
         }
       } else {
         console.log('⚠️ Неизвестный параметр confirm:', params[0]);
@@ -1540,34 +1565,6 @@ _💡 Независимо от выбора, все начинают с про�
         } catch (error) {
           console.error('❌ Ошибка показа подтверждения:', error.message);
           await ctx.answerCbQuery('Ошибка');
-        }
-      }
-      break;
-
-    case 'confirm':
-      if (params[0] === 'bulk') {
-        const user = ctx.state.user;
-        try {
-          if (params[1] === 'complete' && params[2] === 'all') {
-            await taskService.bulkCompleteAllTasks(user.telegram_id);
-            await taskHandler.updateTaskMessage(ctx, taskService, user.telegram_id);
-            await ctx.answerCbQuery('✅ Все задачи отмечены как выполненные!');
-          } else if (params[1] === 'uncomplete' && params[2] === 'all') {
-            await taskService.bulkUncompleteAllTasks(user.telegram_id);
-            await taskHandler.updateTaskMessage(ctx, taskService, user.telegram_id);
-            await ctx.answerCbQuery('⬜ Отметки сняты со всех задач!');
-          } else if (params[1] === 'delete' && params[2] === 'completed') {
-            const deleted = await taskService.bulkDeleteCompletedTasks(user.telegram_id);
-            await taskHandler.updateTaskMessage(ctx, taskService, user.telegram_id);
-            await ctx.answerCbQuery(`🗑️ Удалено ${deleted.length} выполненных задач!`);
-          } else if (params[1] === 'shuffle' && params[2] === 'tasks') {
-            await taskService.shuffleTasksOrder(user.telegram_id);
-            await taskHandler.updateTaskMessage(ctx, taskService, user.telegram_id);
-            await ctx.answerCbQuery('🔄 Порядок задач перемешан!');
-          }
-        } catch (error) {
-          console.error('❌ Ошибка массового действия:', error.message);
-          await ctx.answerCbQuery('Ошибка выполнения действия');
         }
       }
       break;
