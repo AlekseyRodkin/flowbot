@@ -702,6 +702,20 @@ bot.on('callback_query', async (ctx) => {
       await statsHandler.saveMood(ctx, params[0]);
       break;
 
+    case 'stats':
+      // Обработка кнопок статистики
+      if (params[0] === 'weekly') {
+        await statsHandler.showDetailedStats(ctx, 'weekly');
+        await ctx.answerCbQuery();
+      } else if (params[0] === 'monthly') {
+        await statsHandler.showDetailedStats(ctx, 'monthly');
+        await ctx.answerCbQuery();
+      } else if (params[0] === 'achievements') {
+        await statsHandler.showAchievements(ctx);
+        await ctx.answerCbQuery();
+      }
+      break;
+
     case 'tz':
       // Установка часового пояса
       await settingsHandler.setTimezone(ctx, userService, params[0]);
