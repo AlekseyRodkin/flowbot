@@ -205,14 +205,15 @@ class InviteHandler {
 
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
 
-    await ctx.reply(
+    await ctx.editMessageText(
       `📤 *Нажми кнопку, чтобы поделиться:*`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
-          inline_keyboard: [[
-            { text: '📤 Поделиться в Telegram', url: shareUrl }
-          ]]
+          inline_keyboard: [
+            [{ text: '📤 Поделиться в Telegram', url: shareUrl }],
+            [{ text: '🔙 Назад к меню', callback_data: 'invite' }]
+          ]
         }
       }
     );
@@ -232,23 +233,19 @@ class InviteHandler {
       `• Полное избавление от прокрастинации\n\n` +
       `Попробуй: ${referralLink}`;
 
-    try {
-      // Пытаемся отредактировать текущее сообщение
-      await ctx.editMessageText(
-        `💼 *Текст для коллег:*\n\n` +
-        `\`\`\`\n${workText}\n\`\`\`\n\n` +
-        `_Нажми на текст, чтобы скопировать_`,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (error) {
-      // Если редактирование не удалось (например, сообщение слишком старое), отправляем новое
-      await ctx.reply(
-        `💼 *Текст для коллег:*\n\n` +
-        `\`\`\`\n${workText}\n\`\`\`\n\n` +
-        `_Нажми на текст, чтобы скопировать_`,
-        { parse_mode: 'Markdown' }
-      );
-    }
+    await ctx.editMessageText(
+      `💼 *Текст для коллег:*\n\n` +
+      `\`\`\`\n${workText}\n\`\`\`\n\n` +
+      `_Нажми на текст, чтобы скопировать_`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '🔙 Назад к меню', callback_data: 'invite' }
+          ]]
+        }
+      }
+    );
   }
 
   // Текст для друзей
@@ -262,23 +259,19 @@ class InviteHandler {
       `Короче, попробуй: ${referralLink}\n\n` +
       `Через неделю сам поймешь насколько это меняет 💪`;
 
-    try {
-      // Пытаемся отредактировать текущее сообщение
-      await ctx.editMessageText(
-        `👥 *Текст для друзей:*\n\n` +
-        `\`\`\`\n${friendsText}\n\`\`\`\n\n` +
-        `_Нажми на текст, чтобы скопировать_`,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (error) {
-      // Если редактирование не удалось (например, сообщение слишком старое), отправляем новое
-      await ctx.reply(
-        `👥 *Текст для друзей:*\n\n` +
-        `\`\`\`\n${friendsText}\n\`\`\`\n\n` +
-        `_Нажми на текст, чтобы скопировать_`,
-        { parse_mode: 'Markdown' }
-      );
-    }
+    await ctx.editMessageText(
+      `👥 *Текст для друзей:*\n\n` +
+      `\`\`\`\n${friendsText}\n\`\`\`\n\n` +
+      `_Нажми на текст, чтобы скопировать_`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '🔙 Назад к меню', callback_data: 'invite' }
+          ]]
+        }
+      }
+    );
   }
 
   // Детальная статистика
@@ -322,7 +315,14 @@ class InviteHandler {
         message += `\n🏆 *Позиция в рейтинге: #${stats.leaderboardPosition}*`;
       }
 
-      await ctx.reply(message, { parse_mode: 'Markdown' });
+      await ctx.editMessageText(message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '🔙 Назад к меню', callback_data: 'invite' }
+          ]]
+        }
+      });
     } catch (error) {
       console.error('Error showing stats:', error);
       await ctx.reply('😔 Не удалось загрузить статистику');
@@ -352,7 +352,14 @@ class InviteHandler {
 
       message += `\n_Пригласи друзей и попади в топ!_`;
 
-      await ctx.reply(message, { parse_mode: 'Markdown' });
+      await ctx.editMessageText(message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '🔙 Назад к меню', callback_data: 'invite' }
+          ]]
+        }
+      });
     } catch (error) {
       console.error('Error showing leaderboard:', error);
       await ctx.reply('😔 Не удалось загрузить рейтинг');
@@ -400,7 +407,14 @@ class InviteHandler {
       `Q: Зачем это делать?\n` +
       `A: Ты помогаешь людям стать продуктивнее и меняешь их жизнь к лучшему!`;
 
-    await ctx.reply(helpText, { parse_mode: 'Markdown' });
+    await ctx.editMessageText(helpText, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [[
+          { text: '🔙 Назад к меню', callback_data: 'invite' }
+        ]]
+      }
+    });
   }
 
   // Вспомогательные функции
