@@ -1,4 +1,5 @@
 // src/services/notificationService.js
+// VPS deployment: Running on 5.129.224.93 with auto-deploy via GitHub webhook
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 const dailyInsights = require('../content/dailyInsights');
