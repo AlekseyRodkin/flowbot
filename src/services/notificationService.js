@@ -42,9 +42,17 @@ class NotificationService {
 
   // Проверка каждый час для отправки утренних задач И вечерней рефлексии
   scheduleHourlyCheck() {
+    const jobName = 'hourly_check';
+
+    // Проверяем, не зарегистрирована ли уже эта задача
+    if (this.scheduledJobs.has(jobName)) {
+      console.log('⚠️ Hourly check already scheduled, skipping duplicate registration');
+      return;
+    }
+
     console.log('📌 Scheduling hourly check (every hour at :00)...');
 
-    cron.schedule('0 * * * *', async () => {
+    const job = cron.schedule('0 * * * *', async () => {
       const currentHour = moment().tz('Europe/Moscow').hour();
       console.log(`\n⏰ ═══════════════════════════════════════`);
       console.log(`⏰ Hourly check triggered at ${currentHour}:00`);
@@ -61,6 +69,7 @@ class NotificationService {
       }
     });
 
+    this.scheduledJobs.set(jobName, job);
     console.log('✅ Hourly check scheduled successfully');
   }
 
@@ -421,9 +430,17 @@ class NotificationService {
 
   // ТЕСТОВЫЙ ЦИКЛ на 13:31 (проверка очистки чата и полного цикла дня)
   scheduleTestCycle1331() {
+    const jobName = 'test_cycle_1331';
+
+    // Проверяем, не зарегистрирована ли уже эта задача
+    if (this.scheduledJobs.has(jobName)) {
+      console.log('⚠️ Test cycle already scheduled, skipping duplicate registration');
+      return;
+    }
+
     console.log('🧪 Scheduling TEST CYCLE at 13:31 MSK...');
 
-    cron.schedule('31 13 * * *', async () => {
+    const job = cron.schedule('31 13 * * *', async () => {
       console.log(`\n🧪 ═══════════════════════════════════════`);
       console.log(`🧪 TEST CYCLE STARTED at 13:31 MSK`);
       console.log(`🧪 ═══════════════════════════════════════\n`);
@@ -503,6 +520,7 @@ class NotificationService {
       }
     });
 
+    this.scheduledJobs.set(jobName, job);
     console.log('✅ Test cycle scheduled for 13:31 MSK');
   }
 
@@ -518,10 +536,17 @@ class NotificationService {
     const total = regularTasks.length;
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 
+    // Получаем актуальный стрик из таблицы streaks
+    const { data: streak } = await this.supabase
+      .from('streaks')
+      .select('current_streak')
+      .eq('telegram_id', user.telegram_id)
+      .single();
+
     // Формируем сообщение в зависимости от процента выполнения
     let message = `🌙 *Вечерняя рефлексия*\n\n`;
     message += `📊 Сегодня выполнено: ${completed}/${total} задач (${percentage}%)\n`;
-    message += `🔥 Стрик: ${user.current_streak || 0} дней\n\n`;
+    message += `🔥 Стрик: ${streak?.current_streak || 0} дней\n\n`;
 
     if (percentage < 100) {
       // Не все задачи закрыты - мотивируем
