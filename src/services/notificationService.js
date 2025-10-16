@@ -26,14 +26,14 @@ class NotificationService {
       // Дневные напоминания
       this.scheduleDayReminders();
 
-      // ТЕСТОВЫЙ ЦИКЛ на 14:34 (проверка очистки чата и прогресса дней)
-      this.scheduleTestCycle1434();
+      // ТЕСТОВЫЙ ЦИКЛ на 18:28 (проверка очистки чата и прогресса дней)
+      this.scheduleTestCycle1828();
 
       console.log('✅ Notification service initialized');
       console.log(`📅 Cron schedule: Every hour at :00`);
       console.log(`🌅 Morning tasks: checked every hour`);
       console.log(`🌙 Evening reflection: checked every hour`);
-      console.log(`🧪 TEST CYCLE: Will run at 14:34 MSK`);
+      console.log(`🧪 TEST CYCLE: Will run at 18:28 MSK`);
     } catch (error) {
       console.error('❌ Failed to initialize notification service:', error);
       throw error;
@@ -440,9 +440,9 @@ class NotificationService {
     }
   }
 
-  // ТЕСТОВЫЙ ЦИКЛ на 14:34 (проверка очистки чата и полного цикла дня)
-  scheduleTestCycle1434() {
-    const jobName = 'test_cycle_1434';
+  // ТЕСТОВЫЙ ЦИКЛ на 18:28 (проверка очистки чата и полного цикла дня)
+  scheduleTestCycle1828() {
+    const jobName = 'test_cycle_1828';
 
     // Проверяем, не зарегистрирована ли уже эта задача
     if (this.scheduledJobs.has(jobName)) {
@@ -450,11 +450,11 @@ class NotificationService {
       return;
     }
 
-    console.log('🧪 Scheduling TEST CYCLE at 14:34 MSK...');
+    console.log('🧪 Scheduling TEST CYCLE at 18:28 MSK...');
 
-    const job = cron.schedule('34 14 * * *', async () => {
+    const job = cron.schedule('28 18 * * *', async () => {
       console.log(`\n🧪 ═══════════════════════════════════════`);
-      console.log(`🧪 TEST CYCLE STARTED at 14:34 MSK`);
+      console.log(`🧪 TEST CYCLE STARTED at 18:28 MSK`);
       console.log(`🧪 ═══════════════════════════════════════\n`);
 
       try {
@@ -533,7 +533,7 @@ class NotificationService {
     });
 
     this.scheduledJobs.set(jobName, job);
-    console.log('✅ Test cycle scheduled for 14:34 MSK');
+    console.log('✅ Test cycle scheduled for 18:28 MSK');
   }
 
   // Отправка рефлексии пользователю
