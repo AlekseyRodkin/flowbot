@@ -153,10 +153,13 @@ class TaskHandler {
         console.log(`📊 Task completion check: ${completedTasks}/${totalTasks} regular tasks completed (excluding magic)`);
 
         if (completedTasks === totalTasks && totalTasks > 0) {
-          console.log(`🎉 All tasks completed! Incrementing user level`);
+          console.log(`🎉 All tasks completed! Updating streak and incrementing user level`);
           const user = ctx.state.user; // Получаем пользователя из контекста
 
-          // Увеличиваем уровень пользователя при завершении всех задач
+          // 1. СНАЧАЛА обновляем стрик (заслуженно!)
+          await taskService.updateStreak(task.telegram_id);
+
+          // 2. ПОТОМ увеличиваем уровень пользователя при завершении всех задач
           const currentLevel = user.level || 1;
           const nextLevel = currentLevel + 1;
 

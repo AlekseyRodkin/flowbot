@@ -948,10 +948,10 @@ class TaskService {
   async shuffleTasksOrder(telegramId) {
     try {
       const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
-      
+
       // Получаем все задачи
       const tasks = await this.getUserTasksForDate(telegramId, today);
-      
+
       if (tasks.length === 0) {
         return [];
       }
@@ -964,7 +964,7 @@ class TaskService {
       }
 
       // Обновляем позиции в базе данных
-      const updates = tasks.map((task, index) => 
+      const updates = tasks.map((task, index) =>
         this.supabase
           .from('tasks')
           .update({ position: shuffledPositions[index] })
@@ -978,6 +978,97 @@ class TaskService {
     } catch (error) {
       console.error('Error in shuffleTasksOrder:', error);
       throw error;
+    }
+  }
+
+  // Обновить стрик при завершении ВСЕХ задач дня
+  async updateStreak(telegramId) {
+    try {
+      const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
+
+      console.log(`🔥 Updating streak for user ${telegramId} on ${today}`);
+
+      // Получаем текущий стрик
+      const { data: streak, error } = await this.supabase
+        .from('streaks')
+        .select('*')
+        .eq('telegram_id', telegramId)
+        .single();
+
+      if (error || !streak) {
+        // Создаём новую запись стрика (первое завершение дня)
+        console.log('🆕 Creating first streak record');
+        await this.supabase
+          .from('streaks')
+          .insert([{
+            telegram_id: telegramId,
+            current_streak: 1,
+            longest_streak: 1,
+            total_days: 1,
+            last_completed_date: today,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }]);
+        return;
+      }
+
+      // Проверяем last_completed_date
+      const lastDate = streak.last_completed_date
+        ? moment(streak.last_completed_date)
+        : null;
+      const currentDate = moment(today);
+
+      let newStreak = streak.current_streak;
+      let newLongest = streak.longest_streak;
+      let newTotal = streak.total_days;
+
+      if (!lastDate) {
+        // Первый день (не должно случиться, но на всякий случай)
+        console.log('🎯 First completed day');
+        newStreak = 1;
+        newTotal = 1;
+      } else {
+        const daysDiff = currentDate.diff(lastDate, 'days');
+
+        if (daysDiff === 0) {
+          // Уже засчитали сегодня - игнорируем
+          console.log('⏭️ Already counted today, skipping');
+          return;
+        } else if (daysDiff === 1) {
+          // Вчера был завершён - продолжаем стрик
+          console.log(`🔥 Streak continues: ${newStreak} → ${newStreak + 1}`);
+          newStreak = streak.current_streak + 1;
+          newTotal = streak.total_days + 1;
+        } else {
+          // Пропущены дни - сбрасываем стрик
+          console.log(`💔 Streak broken (gap: ${daysDiff} days), resetting to 1`);
+          newStreak = 1;
+          newTotal = streak.total_days + 1;
+        }
+      }
+
+      // Обновляем longest_streak если текущий стрик побил рекорд
+      if (newStreak > newLongest) {
+        console.log(`🏆 New record! ${newLongest} → ${newStreak}`);
+        newLongest = newStreak;
+      }
+
+      // Сохраняем обновлённый стрик
+      await this.supabase
+        .from('streaks')
+        .update({
+          current_streak: newStreak,
+          longest_streak: newLongest,
+          total_days: newTotal,
+          last_completed_date: today,
+          updated_at: new Date().toISOString()
+        })
+        .eq('telegram_id', telegramId);
+
+      console.log(`✅ Streak updated: current=${newStreak}, longest=${newLongest}, total=${newTotal}`);
+
+    } catch (error) {
+      console.error('Error in updateStreak:', error);
     }
   }
 }
