@@ -315,10 +315,12 @@ class AIService {
       userLevel
     );
     tasks.push(...hardSelection);
-    
-    // Добавляем магическую задачу
-    const magicTask = this.selectRandomTask(taskPools.magicTasks, 'magic');
-    if (magicTask) tasks.push(magicTask);
+
+    // Добавляем магическую задачу только для дней 16+ (эксперимент с чудом)
+    if (userLevel >= 16 && taskConfig.magic) {
+      const magicTask = this.selectRandomTask(taskPools.magicTasks, 'magic');
+      if (magicTask) tasks.push(magicTask);
+    }
     
     // Финальная дедупликация по названию задачи
     const uniqueTasks = [];
