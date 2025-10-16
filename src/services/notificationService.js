@@ -26,14 +26,14 @@ class NotificationService {
       // Дневные напоминания
       this.scheduleDayReminders();
 
-      // ТЕСТОВЫЙ ЦИКЛ на 13:20 (проверка очистки чата и прогресса дней)
-      this.scheduleTestCycle1320();
+      // ТЕСТОВЫЙ ЦИКЛ на 13:31 (проверка очистки чата и прогресса дней)
+      this.scheduleTestCycle1331();
 
       console.log('✅ Notification service initialized');
       console.log(`📅 Cron schedule: Every hour at :00`);
       console.log(`🌅 Morning tasks: checked every hour`);
       console.log(`🌙 Evening reflection: checked every hour`);
-      console.log(`🧪 TEST CYCLE: Will run at 13:20 MSK`);
+      console.log(`🧪 TEST CYCLE: Will run at 13:31 MSK`);
     } catch (error) {
       console.error('❌ Failed to initialize notification service:', error);
       throw error;
@@ -419,13 +419,13 @@ class NotificationService {
     }
   }
 
-  // ТЕСТОВЫЙ ЦИКЛ на 13:20 (проверка очистки чата и полного цикла дня)
-  scheduleTestCycle1320() {
-    console.log('🧪 Scheduling TEST CYCLE at 13:20 MSK...');
+  // ТЕСТОВЫЙ ЦИКЛ на 13:31 (проверка очистки чата и полного цикла дня)
+  scheduleTestCycle1331() {
+    console.log('🧪 Scheduling TEST CYCLE at 13:31 MSK...');
 
-    cron.schedule('20 13 * * *', async () => {
+    cron.schedule('31 13 * * *', async () => {
       console.log(`\n🧪 ═══════════════════════════════════════`);
-      console.log(`🧪 TEST CYCLE STARTED at 13:20 MSK`);
+      console.log(`🧪 TEST CYCLE STARTED at 13:31 MSK`);
       console.log(`🧪 ═══════════════════════════════════════\n`);
 
       try {
@@ -503,7 +503,7 @@ class NotificationService {
       }
     });
 
-    console.log('✅ Test cycle scheduled for 13:20 MSK');
+    console.log('✅ Test cycle scheduled for 13:31 MSK');
   }
 
   // Отправка рефлексии пользователю
