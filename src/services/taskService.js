@@ -341,10 +341,21 @@ class TaskService {
         }
       }
       
-      // Рассчитываем flow_score
-      const totalTasks = stats.total_tasks || 30;
-      const completedTasks = updates.completed_tasks || stats.completed_tasks || 0;
-      updates.flow_score = Math.round((completedTasks / totalTasks) * 100);
+      // Рассчитываем flow_score (исключаем магическую задачу из подсчёта)
+      // Получаем реальное количество задач без магической
+      const { data: allTasks } = await this.supabase
+        .from('tasks')
+        .select('task_type, completed')
+        .eq('telegram_id', telegramId)
+        .eq('date', date);
+
+      const regularTasks = allTasks ? allTasks.filter(t => t.task_type !== 'magic') : [];
+      const totalRegularTasks = regularTasks.length;
+      const completedRegularTasks = regularTasks.filter(t => t.completed).length;
+
+      updates.flow_score = totalRegularTasks > 0
+        ? Math.round((completedRegularTasks / totalRegularTasks) * 100)
+        : 0;
       
       // Рассчитываем productivity_index
       const easyWeight = 1;
