@@ -324,7 +324,10 @@ class AIService {
     }
     
     // Если после дедупликации не хватает задач, добавляем из резерва
-    const totalNeeded = (taskConfig.easy || 0) + (taskConfig.standard || 0) + (taskConfig.hard || 0) + (taskConfig.magic ? 1 : 0);
+    // НЕ учитываем hard tasks если пул пустой (они добавляются пользователем)
+    const totalNeeded = (taskConfig.easy || 0) + (taskConfig.standard || 0) +
+      (taskPools.hardTasks.length > 0 ? (taskConfig.hard || 0) : 0) +
+      (taskConfig.magic ? 1 : 0);
     if (uniqueTasks.length < totalNeeded) {
       // Собираем все доступные задачи в один пул
       const allAvailable = [
