@@ -619,7 +619,7 @@ bot.on('callback_query', async (ctx) => {
             // Обычное завершение дня
             const completeMessage = `✅ *День завершён!*\n\n` +
               `Отличная работа! ${g(user, 'Отдохни', 'Отдохни')} и готовься к новому дню.\n\n` +
-              `📅 Завтра день ${user.level + 1}`;
+              `📅 Завтра день ${user.level}`;
 
             const keyboard = Markup.inlineKeyboard([
               [
@@ -636,10 +636,7 @@ bot.on('callback_query', async (ctx) => {
             });
           }
 
-          // Увеличиваем level пользователя
-          await userService.updateUser(user.telegram_id, {
-            level: user.level + 1
-          });
+          // Level увеличивается ТОЛЬКО при отправке утренних задач (notificationService.js)
 
         } catch (error) {
           console.error('Error completing day:', error);

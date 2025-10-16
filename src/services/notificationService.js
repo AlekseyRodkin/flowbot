@@ -101,16 +101,8 @@ class NotificationService {
 
   // Отправка задач конкретному пользователю
   async sendTasksToUser(user) {
-    // Получаем реальное количество активных дней из статистики
-    let currentDay = user.level || 1;
-    try {
-      const stats = await this.userService.getUserStats(user.telegram_id);
-      if (stats && stats.totalDays !== undefined) {
-        currentDay = stats.totalDays || 1;
-      }
-    } catch (error) {
-      console.error('Error getting user stats for morning tasks:', error);
-    }
+    // Используем ТОЛЬКО user.level как единственный источник истины для дня программы
+    const currentDay = user.level || 1;
 
     // Определяем конфигурацию задач на основе дня программы
     const taskConfig = this.getTaskConfig(currentDay);
