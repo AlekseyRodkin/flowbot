@@ -104,6 +104,72 @@ class NotificationService {
     // Используем ТОЛЬКО user.level как единственный источник истины для дня программы
     const currentDay = user.level || 1;
 
+    // ═══════════════════════════════════════════════════════════════
+    // ОЧИСТКА ЧАТА: Удаляем все старые сообщения кроме вчерашнего вечернего
+    // ═══════════════════════════════════════════════════════════════
+    try {
+      console.log(`🧹 Cleaning chat for user ${user.telegram_id}...`);
+
+      // Получаем последнее вечернее сообщение (вчерашняя рефлексия)
+      const { data: lastEveningMessage } = await this.supabase
+        .from('bot_messages')
+        .select('message_id')
+        .eq('telegram_id', user.telegram_id)
+        .eq('message_type', 'evening')
+        .order('sent_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      const keepMessageId = lastEveningMessage?.message_id;
+      console.log(`📌 Keeping evening message: ${keepMessageId || 'none'}`);
+
+      // Получаем все сообщения бота для этого пользователя
+      const { data: allMessages } = await this.supabase
+        .from('bot_messages')
+        .select('message_id')
+        .eq('telegram_id', user.telegram_id)
+        .order('sent_at', { ascending: false });
+
+      if (allMessages && allMessages.length > 0) {
+        console.log(`📝 Found ${allMessages.length} bot messages to process`);
+
+        let deletedCount = 0;
+        for (const msg of allMessages) {
+          // Пропускаем последнее вечернее сообщение
+          if (msg.message_id === keepMessageId) {
+            continue;
+          }
+
+          // Удаляем сообщение из Telegram
+          try {
+            await this.bot.telegram.deleteMessage(user.telegram_id, msg.message_id);
+            deletedCount++;
+          } catch (delError) {
+            // Игнорируем ошибки удаления (сообщение уже удалено или недоступно)
+            console.log(`⚠️ Could not delete message ${msg.message_id}: ${delError.message}`);
+          }
+        }
+
+        // Удаляем все записи из БД кроме последнего вечернего
+        await this.supabase
+          .from('bot_messages')
+          .delete()
+          .eq('telegram_id', user.telegram_id)
+          .neq('message_id', keepMessageId || 0);
+
+        console.log(`✅ Chat cleaned: deleted ${deletedCount} messages, kept 1 evening message`);
+      } else {
+        console.log(`ℹ️ No previous messages found for user ${user.telegram_id}`);
+      }
+    } catch (cleanError) {
+      console.error(`❌ Error cleaning chat for user ${user.telegram_id}:`, cleanError);
+      // Продолжаем работу даже если очистка не удалась
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ГЕНЕРАЦИЯ И ОТПРАВКА УТРЕННИХ ЗАДАЧ
+    // ═══════════════════════════════════════════════════════════════
+
     // Определяем конфигурацию задач на основе дня программы
     const taskConfig = this.getTaskConfig(currentDay);
 
@@ -117,10 +183,27 @@ class NotificationService {
     const message = this.formatTasksMessage(tasks, currentDay);
 
     // Отправляем сообщение
-    await this.bot.telegram.sendMessage(user.telegram_id, message, {
+    const sentMessage = await this.bot.telegram.sendMessage(user.telegram_id, message, {
       parse_mode: 'Markdown',
       reply_markup: this.createTaskKeyboard(tasks)
     });
+
+    // Сохраняем message_id утреннего сообщения в БД
+    try {
+      await this.supabase
+        .from('bot_messages')
+        .insert({
+          telegram_id: user.telegram_id,
+          message_id: sentMessage.message_id,
+          message_type: 'morning',
+          sent_at: new Date().toISOString()
+        });
+
+      console.log(`💾 Saved morning message_id ${sentMessage.message_id} for user ${user.telegram_id}`);
+    } catch (error) {
+      console.error(`❌ Error saving morning message_id:`, error);
+      // Не прерываем работу, если сохранение не удалось
+    }
 
     console.log(`✅ Sent morning tasks to user ${user.telegram_id} (day ${user.level})`);
 
@@ -382,12 +465,29 @@ class NotificationService {
       ]);
     }
 
-    await this.bot.telegram.sendMessage(user.telegram_id, message, {
+    const sentMessage = await this.bot.telegram.sendMessage(user.telegram_id, message, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: keyboard
       }
     });
+
+    // Сохраняем message_id вечернего сообщения в БД
+    try {
+      await this.supabase
+        .from('bot_messages')
+        .insert({
+          telegram_id: user.telegram_id,
+          message_id: sentMessage.message_id,
+          message_type: 'evening',
+          sent_at: new Date().toISOString()
+        });
+
+      console.log(`💾 Saved evening message_id ${sentMessage.message_id} for user ${user.telegram_id}`);
+    } catch (error) {
+      console.error(`❌ Error saving evening message_id:`, error);
+      // Не прерываем работу, если сохранение не удалось
+    }
   }
 }
 
