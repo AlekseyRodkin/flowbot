@@ -20,9 +20,9 @@ class TaskHandler {
       
       const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
       const tasks = await taskService.getUserTasksForDate(user.id, today);
-      
+
       if (!tasks || tasks.length === 0) {
-        await this.showTaskCreationModeSelection(ctx, user);
+        await this.showTaskCreationModeSelection(ctx, user, editMessage);
         return;
       }
 
