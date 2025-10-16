@@ -26,16 +26,14 @@ class NotificationService {
       // Дневные напоминания
       this.scheduleDayReminders();
 
-      // ТЕСТОВЫЙ ЦИКЛ на 13:00 и 13:10 (только для проверки очистки чата)
-      this.scheduleTestCycle();
-      this.scheduleTestCycleWithMessages();
+      // ТЕСТОВЫЙ ЦИКЛ на 13:20 (проверка очистки чата и прогресса дней)
+      this.scheduleTestCycle1320();
 
       console.log('✅ Notification service initialized');
       console.log(`📅 Cron schedule: Every hour at :00`);
       console.log(`🌅 Morning tasks: checked every hour`);
       console.log(`🌙 Evening reflection: checked every hour`);
-      console.log(`🧪 TEST CYCLE: Will run at 13:00 MSK`);
-      console.log(`🧪 TEST CYCLE 2 (with messages): Will run at 13:10 MSK`);
+      console.log(`🧪 TEST CYCLE: Will run at 13:20 MSK`);
     } catch (error) {
       console.error('❌ Failed to initialize notification service:', error);
       throw error;
@@ -421,13 +419,13 @@ class NotificationService {
     }
   }
 
-  // ТЕСТОВЫЙ ЦИКЛ на 13:00 (проверка очистки чата и полного цикла дня)
-  scheduleTestCycle() {
-    console.log('🧪 Scheduling TEST CYCLE at 13:00 MSK...');
+  // ТЕСТОВЫЙ ЦИКЛ на 13:20 (проверка очистки чата и полного цикла дня)
+  scheduleTestCycle1320() {
+    console.log('🧪 Scheduling TEST CYCLE at 13:20 MSK...');
 
-    cron.schedule('0 13 * * *', async () => {
+    cron.schedule('20 13 * * *', async () => {
       console.log(`\n🧪 ═══════════════════════════════════════`);
-      console.log(`🧪 TEST CYCLE STARTED at 13:00 MSK`);
+      console.log(`🧪 TEST CYCLE STARTED at 13:20 MSK`);
       console.log(`🧪 ═══════════════════════════════════════\n`);
 
       try {
@@ -505,127 +503,7 @@ class NotificationService {
       }
     });
 
-    console.log('✅ Test cycle scheduled for 13:00 MSK');
-  }
-
-  // ТЕСТОВЫЙ ЦИКЛ 2 на 13:10 (с несколькими сообщениями для проверки очистки)
-  scheduleTestCycleWithMessages() {
-    console.log('🧪 Scheduling TEST CYCLE 2 at 13:10 MSK (with test messages)...');
-
-    cron.schedule('10 13 * * *', async () => {
-      console.log(`\n🧪 ═══════════════════════════════════════`);
-      console.log(`🧪 TEST CYCLE 2 STARTED at 13:10 MSK`);
-      console.log(`🧪 Testing cleanup with multiple messages`);
-      console.log(`🧪 ═══════════════════════════════════════\n`);
-
-      try {
-        // Получаем тестового пользователя (твой telegram_id)
-        const testTelegramId = 272559647;
-
-        const { data: user, error } = await this.supabase
-          .from('users')
-          .select('*')
-          .eq('telegram_id', testTelegramId)
-          .single();
-
-        if (error || !user) {
-          console.error('❌ Test user not found:', error);
-          return;
-        }
-
-        console.log(`👤 Test user: ${user.first_name || user.username} (${user.telegram_id})`);
-        console.log(`📊 Current level: ${user.level || 1}\n`);
-
-        // ШАГ 1: Отправляем 3 тестовых сообщения (симуляция старых сообщений)
-        console.log('📤 STEP 1: Sending 3 test messages...');
-
-        const testMsg1 = await this.bot.telegram.sendMessage(testTelegramId, '🧪 Тестовое сообщение 1 (должно быть удалено)');
-        await this.supabase.from('bot_messages').insert({
-          telegram_id: testTelegramId,
-          message_id: testMsg1.message_id,
-          message_type: 'other',
-          sent_at: new Date().toISOString()
-        });
-        console.log(`   ✅ Sent test message 1: ${testMsg1.message_id}`);
-
-        const testMsg2 = await this.bot.telegram.sendMessage(testTelegramId, '🧪 Тестовое сообщение 2 (должно быть удалено)');
-        await this.supabase.from('bot_messages').insert({
-          telegram_id: testTelegramId,
-          message_id: testMsg2.message_id,
-          message_type: 'other',
-          sent_at: new Date().toISOString()
-        });
-        console.log(`   ✅ Sent test message 2: ${testMsg2.message_id}`);
-
-        const testMsg3 = await this.bot.telegram.sendMessage(testTelegramId, '🧪 Тестовое сообщение 3 (должно быть удалено)');
-        await this.supabase.from('bot_messages').insert({
-          telegram_id: testTelegramId,
-          message_id: testMsg3.message_id,
-          message_type: 'other',
-          sent_at: new Date().toISOString()
-        });
-        console.log(`   ✅ Sent test message 3: ${testMsg3.message_id}\n`);
-
-        // ШАГ 2: Отправляем вечернюю рефлексию (ДОЛЖНА ОСТАТЬСЯ)
-        console.log('🌙 STEP 2: Sending evening reflection (should be kept)...');
-        await this.sendReflectionToUser(user);
-        console.log('✅ Evening reflection sent\n');
-
-        // ШАГ 3: Пауза 3 секунды
-        console.log('⏳ STEP 3: Waiting 3 seconds...');
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        console.log('✅ Pause complete\n');
-
-        // ШАГ 4: Отправляем утренние задачи (с очисткой чата)
-        console.log('☀️ STEP 4: Sending morning tasks (should delete 3 test messages + old morning/evening)...');
-
-        // Перезапрашиваем пользователя чтобы получить актуальный level
-        const { data: refreshedUser } = await this.supabase
-          .from('users')
-          .select('*')
-          .eq('telegram_id', testTelegramId)
-          .single();
-
-        await this.sendTasksToUser(refreshedUser || user);
-        console.log('✅ Morning tasks sent\n');
-
-        // ШАГ 5: Проверяем финальное состояние
-        const { data: finalUser } = await this.supabase
-          .from('users')
-          .select('level')
-          .eq('telegram_id', testTelegramId)
-          .single();
-
-        const { data: botMessages } = await this.supabase
-          .from('bot_messages')
-          .select('*')
-          .eq('telegram_id', testTelegramId)
-          .order('sent_at', { ascending: false });
-
-        console.log(`\n📊 ═══════════════════════════════════════`);
-        console.log(`📊 TEST CYCLE 2 RESULTS:`);
-        console.log(`📊 ═══════════════════════════════════════`);
-        console.log(`📈 Level: ${user.level || 1} → ${finalUser?.level || 1}`);
-        console.log(`💾 Messages in DB: ${botMessages?.length || 0}`);
-        console.log(`✅ Expected: 2 messages (1 evening + 1 morning)`);
-        if (botMessages && botMessages.length > 0) {
-          botMessages.forEach(msg => {
-            console.log(`   - ${msg.message_type} (message_id: ${msg.message_id})`);
-          });
-        }
-        console.log(`\n✅ TEST CYCLE 2 COMPLETED!`);
-        console.log(`📱 Check your Telegram - you should see ONLY:`);
-        console.log(`   1. Evening reflection message (kept)`);
-        console.log(`   2. Morning tasks message (new)`);
-        console.log(`   3. All 3 test messages DELETED ✅`);
-        console.log(`   4. All old messages DELETED ✅\n`);
-
-      } catch (error) {
-        console.error(`❌ Error in test cycle 2:`, error);
-      }
-    });
-
-    console.log('✅ Test cycle 2 scheduled for 13:10 MSK');
+    console.log('✅ Test cycle scheduled for 13:20 MSK');
   }
 
   // Отправка рефлексии пользователю
