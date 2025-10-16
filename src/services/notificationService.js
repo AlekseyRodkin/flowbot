@@ -266,12 +266,12 @@ class NotificationService {
       message += `📅 День ${level} (ты в потоке! 🎉)\n\n`;
     }
     message += `*Твой Flow List на сегодня:*\n\n`;
-    
+
     const easyTasks = tasks.filter(t => t.type === 'easy');
     const standardTasks = tasks.filter(t => t.type === 'standard');
     const hardTasks = tasks.filter(t => t.type === 'hard');
     const magicTask = tasks.find(t => t.type === 'magic');
-    
+
     if (easyTasks.length > 0) {
       message += `💚 *Простые задачи:*\n`;
       easyTasks.forEach((task, i) => {
@@ -279,7 +279,7 @@ class NotificationService {
       });
       message += '\n';
     }
-    
+
     if (standardTasks.length > 0) {
       message += `💛 *Средние задачи:*\n`;
       standardTasks.forEach((task, i) => {
@@ -287,21 +287,32 @@ class NotificationService {
       });
       message += '\n';
     }
-    
-    if (hardTasks.length > 0) {
-      message += `❤️ *Сложные задачи:*\n`;
-      hardTasks.forEach((task, i) => {
-        message += `${i + 1}. ${task.text}\n`;
-      });
+
+    // Сложные задачи - показываем всегда если они ожидаются (уровень 11+)
+    const taskConfig = this.getTaskConfig(level);
+    const hardTasksExpected = taskConfig.hard;
+
+    if (hardTasksExpected > 0) {
+      message += `❤️ *Сложные задачи (${hardTasks.length}/${hardTasksExpected}):*\n`;
+
+      if (hardTasks.length > 0) {
+        hardTasks.forEach((task, i) => {
+          message += `${i + 1}. ${task.text}\n`;
+        });
+      } else {
+        // Плейсхолдер когда нет сложных задач
+        message += `\n💡 _Добавь ${hardTasksExpected} сложных задач самостоятельно через кнопку "📋 Открыть список" → "✏️ Изменить список"._\n`;
+        message += `_⚠️ Важно: выполни все задачи для завершения дня!_\n`;
+      }
       message += '\n';
     }
-    
+
     if (magicTask) {
       message += `✨ *Магическая задача:*\n${magicTask.text}\n\n`;
     }
-    
+
     message += `_Начни с первой простой задачи и войди в поток!_`;
-    
+
     return message;
   }
 
