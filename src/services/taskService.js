@@ -248,11 +248,18 @@ class TaskService {
         .single();
       
       if (existing) {
-        // Обновляем существующую запись
+        // Обновляем существующую запись и СБРАСЫВАЕМ все счетчики
         await this.supabase
           .from('daily_stats')
           .update({
             total_tasks: totalTasks,
+            completed_tasks: 0,
+            easy_completed: 0,
+            standard_completed: 0,
+            hard_completed: 0,
+            magic_completed: false,
+            flow_score: 0,
+            productivity_index: 0,
             created_at: new Date().toISOString()
           })
           .eq('id', existing.id);
