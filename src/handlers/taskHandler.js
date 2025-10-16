@@ -29,19 +29,8 @@ class TaskHandler {
       // Группируем задачи по типам
       const tasksByType = this.groupTasksByType(tasks);
 
-      // Получаем реальное количество активных дней из статистики
-      const userService = ctx.state.userService;
-      let currentDay = user.level || 1;
-      if (userService) {
-        try {
-          const stats = await userService.getUserStats(user.telegram_id);
-          if (stats && stats.totalDays !== undefined) {
-            currentDay = stats.totalDays || 1;
-          }
-        } catch (error) {
-          console.error('Error getting user stats for task list:', error);
-        }
-      }
+      // Используем user.level как единственный источник истины для номера дня
+      const currentDay = user.level || 1;
 
       // Формируем сообщение
       let message = `📅 *Мои задачи на сегодня*\n`;
@@ -81,9 +70,14 @@ class TaskHandler {
           message += this.formatTaskList(tasksByType.hard);
         }
 
-        if (hardTasksCount < hardTasksExpected) {
+        if (hardTasksCount === 0) {
+          // Когда совсем нет задач - более информативное сообщение
+          message += `\n💡 _Добавь 8 сложных задач через кнопку "Добавить задачу" ниже_ ⬇️\n`;
+        } else if (hardTasksCount < hardTasksExpected) {
+          // Когда есть, но не хватает
           const needMore = hardTasksExpected - hardTasksCount;
-          message += `\n➕ _Добавь ${needMore} свою задачу_ (используй кнопку "Добавить задачу")\n`;
+          const taskWord = needMore === 1 ? 'задачу' : (needMore < 5 ? 'задачи' : 'задач');
+          message += `\n➕ _Добавь ещё ${needMore} ${taskWord}_\n`;
         }
       }
 
@@ -392,9 +386,14 @@ class TaskHandler {
           message += this.formatTaskList(tasksByType.hard);
         }
 
-        if (hardTasksCount < hardTasksExpected) {
+        if (hardTasksCount === 0) {
+          // Когда совсем нет задач - более информативное сообщение
+          message += `\n💡 _Добавь 8 сложных задач через кнопку "Добавить задачу" ниже_ ⬇️\n`;
+        } else if (hardTasksCount < hardTasksExpected) {
+          // Когда есть, но не хватает
           const needMore = hardTasksExpected - hardTasksCount;
-          message += `\n➕ _Добавь ${needMore} свою задачу_\n`;
+          const taskWord = needMore === 1 ? 'задачу' : (needMore < 5 ? 'задачи' : 'задач');
+          message += `\n➕ _Добавь ещё ${needMore} ${taskWord}_\n`;
         }
       }
 
@@ -665,19 +664,8 @@ _Ты это ${g(user, 'заслужил', 'заслужила')}!_
   // Показать выбор режима создания задач
   async showTaskCreationModeSelection(ctx, user, editMessage = false) {
     try {
-      // Получаем реальное количество активных дней из статистики
-      const userService = ctx.state.userService;
-      let currentDay = user.level || 1;
-      if (userService) {
-        try {
-          const stats = await userService.getUserStats(user.telegram_id);
-          if (stats && stats.totalDays !== undefined) {
-            currentDay = stats.totalDays || 1;
-          }
-        } catch (error) {
-          console.error('Error getting user stats for mode selection:', error);
-        }
-      }
+      // Используем user.level как единственный источник истины для номера дня
+      const currentDay = user.level || 1;
 
       let progressText;
       if (currentDay <= 15) {
