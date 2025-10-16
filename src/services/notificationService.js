@@ -512,8 +512,10 @@ class NotificationService {
     const today = moment().tz(user.timezone || 'Europe/Moscow').format('YYYY-MM-DD');
     const tasks = await this.taskService.getUserTasksForDate(user.telegram_id, today);
 
-    const completed = tasks.filter(t => t.completed).length;
-    const total = tasks.length;
+    // Исключаем магическую задачу из подсчета (она идет отдельно)
+    const regularTasks = tasks.filter(t => t.type !== 'magic');
+    const completed = regularTasks.filter(t => t.completed).length;
+    const total = regularTasks.length;
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     // Формируем сообщение в зависимости от процента выполнения
