@@ -218,13 +218,10 @@ class StatsHandler {
           break;
       }
       
-      response += '\n\nХочешь добавить заметку о сегодняшнем дне?';
-      
       const keyboard = Markup.inlineKeyboard([
-        [Markup.button.callback('📝 Добавить рефлексию', 'add_reflection')],
-        [Markup.button.callback('➡️ Пропустить', 'skip_reflection')]
+        [Markup.button.callback('🏠 Главное меню', 'back_to_menu')]
       ]);
-      
+
       await sendOrEditMessage(ctx, response, keyboard);
     } catch (error) {
       console.error('Error saving mood:', error);
