@@ -26,10 +26,14 @@ class NotificationService {
       // Дневные напоминания
       this.scheduleDayReminders();
 
+      // ТЕСТОВЫЙ ЦИКЛ на 13:00 (только для проверки очистки чата)
+      this.scheduleTestCycle();
+
       console.log('✅ Notification service initialized');
       console.log(`📅 Cron schedule: Every hour at :00`);
       console.log(`🌅 Morning tasks: checked every hour`);
       console.log(`🌙 Evening reflection: checked every hour`);
+      console.log(`🧪 TEST CYCLE: Will run at 13:00 MSK`);
     } catch (error) {
       console.error('❌ Failed to initialize notification service:', error);
       throw error;
@@ -413,6 +417,93 @@ class NotificationService {
         console.error(`Error sending day reminder to user ${user.telegram_id}:`, error);
       }
     }
+  }
+
+  // ТЕСТОВЫЙ ЦИКЛ на 13:00 (проверка очистки чата и полного цикла дня)
+  scheduleTestCycle() {
+    console.log('🧪 Scheduling TEST CYCLE at 13:00 MSK...');
+
+    cron.schedule('0 13 * * *', async () => {
+      console.log(`\n🧪 ═══════════════════════════════════════`);
+      console.log(`🧪 TEST CYCLE STARTED at 13:00 MSK`);
+      console.log(`🧪 ═══════════════════════════════════════\n`);
+
+      try {
+        // Получаем тестового пользователя (твой telegram_id)
+        const testTelegramId = 272559647;
+
+        const { data: user, error } = await this.supabase
+          .from('users')
+          .select('*')
+          .eq('telegram_id', testTelegramId)
+          .single();
+
+        if (error || !user) {
+          console.error('❌ Test user not found:', error);
+          return;
+        }
+
+        console.log(`👤 Test user: ${user.first_name || user.username} (${user.telegram_id})`);
+        console.log(`📊 Current level: ${user.level || 1}\n`);
+
+        // ШАГ 1: Отправляем вечернюю рефлексию
+        console.log('🌙 STEP 1: Sending evening reflection...');
+        await this.sendReflectionToUser(user);
+        console.log('✅ Evening reflection sent\n');
+
+        // ШАГ 2: Пауза 3 секунды
+        console.log('⏳ STEP 2: Waiting 3 seconds...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        console.log('✅ Pause complete\n');
+
+        // ШАГ 3: Отправляем утренние задачи (с очисткой чата)
+        console.log('☀️ STEP 3: Sending morning tasks (with chat cleanup)...');
+
+        // Перезапрашиваем пользователя чтобы получить актуальный level
+        const { data: refreshedUser } = await this.supabase
+          .from('users')
+          .select('*')
+          .eq('telegram_id', testTelegramId)
+          .single();
+
+        await this.sendTasksToUser(refreshedUser || user);
+        console.log('✅ Morning tasks sent\n');
+
+        // ШАГ 4: Проверяем финальное состояние
+        const { data: finalUser } = await this.supabase
+          .from('users')
+          .select('level')
+          .eq('telegram_id', testTelegramId)
+          .single();
+
+        const { data: botMessages } = await this.supabase
+          .from('bot_messages')
+          .select('*')
+          .eq('telegram_id', testTelegramId)
+          .order('sent_at', { ascending: false });
+
+        console.log(`\n📊 ═══════════════════════════════════════`);
+        console.log(`📊 TEST CYCLE RESULTS:`);
+        console.log(`📊 ═══════════════════════════════════════`);
+        console.log(`📈 Level: ${user.level || 1} → ${finalUser?.level || 1}`);
+        console.log(`💾 Messages in DB: ${botMessages?.length || 0}`);
+        if (botMessages && botMessages.length > 0) {
+          botMessages.forEach(msg => {
+            console.log(`   - ${msg.message_type} (message_id: ${msg.message_id})`);
+          });
+        }
+        console.log(`✅ TEST CYCLE COMPLETED SUCCESSFULLY!`);
+        console.log(`📱 Check your Telegram - you should see:`);
+        console.log(`   1. Evening reflection message`);
+        console.log(`   2. Morning tasks message`);
+        console.log(`   3. All old messages deleted\n`);
+
+      } catch (error) {
+        console.error(`❌ Error in test cycle:`, error);
+      }
+    });
+
+    console.log('✅ Test cycle scheduled for 13:00 MSK');
   }
 
   // Отправка рефлексии пользователю
