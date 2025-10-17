@@ -14,6 +14,7 @@ const { InviteHandler } = require('../src/handlers/inviteHandler');
 const customTaskHandler = require('../src/handlers/customTaskHandler');
 const { FeedbackHandler } = require('../src/handlers/feedbackHandler');
 const { DonationHandler } = require('../src/handlers/donationHandler');
+const { AnalyticsHandler } = require('../src/handlers/analyticsHandler');
 
 // Import services
 const { TaskService } = require('../src/services/taskService');
@@ -24,6 +25,8 @@ const { ReferralService } = require('../src/services/referralService');
 const { CustomTaskService } = require('../src/services/customTaskService');
 const { ViralService } = require('../src/services/viralService');
 const { FeedbackService } = require('../src/services/feedbackService');
+const { AnalyticsService } = require('../src/services/analyticsService');
+const { EventLogger, EVENT_TYPES } = require('../src/services/eventLogger');
 
 // Import session store
 const { supabaseSession } = require('../src/utils/sessionStore');
@@ -68,12 +71,15 @@ const referralService = new ReferralService(supabase, bot);
 const customTaskService = new CustomTaskService(supabase);
 const viralService = new ViralService(supabase, bot, referralService);
 const feedbackService = new FeedbackService(supabase, bot);
+const analyticsService = new AnalyticsService(supabase);
+const eventLogger = new EventLogger(supabase);
 
 // Initialize handlers
 const taskHandler = new TaskHandler(supabase);
 const inviteHandler = new InviteHandler(referralService, userService, supabase);
 const feedbackHandler = new FeedbackHandler(feedbackService);
 const donationHandler = new DonationHandler();
+const analyticsHandler = new AnalyticsHandler(analyticsService);
 
 // Middleware для загрузки пользователя
 bot.use(async (ctx, next) => {
@@ -182,11 +188,14 @@ bot.command('today', async (ctx) => {
     
     // Генерируем новые задачи
     await ctx.reply('🌅 Генерирую твой Flow List на сегодня...');
-    
+
     const level = user.level || 1;
     let taskConfig = {};
-    
-    if (level <= 5) {
+
+    // Quick Win стратегия: Day 1 = 10 задач
+    if (level === 1) {
+      taskConfig = { easy: 10, standard: 0, hard: 0 };
+    } else if (level <= 5) {
       taskConfig = { easy: 30, standard: 0, hard: 0 };
     } else if (level <= 10) {
       taskConfig = { easy: 15, standard: 10, hard: 5 };
@@ -262,6 +271,11 @@ bot.command('mytasks', async (ctx) => {
     return;
   }
   await customTaskHandler.showCustomTasksMenu(ctx, taskService);
+});
+
+// Команда /analytics - analytics dashboard (только для админа)
+bot.command('analytics', async (ctx) => {
+  await analyticsHandler.showDashboard(ctx);
 });
 
 // Команда /help - помощь
@@ -839,30 +853,33 @@ bot.on('callback_query', async (ctx) => {
       } else if (params[0] === 'tasks') {
         try {
           const user = ctx.state.user;
-          
+
           await taskService.deleteTodayTasks(user.telegram_id);
           await ctx.answerCbQuery('🔄 Генерирую новые задачи...');
-          
+
           const level = user.level || 1;
           let taskConfig = {};
-          
-          if (level <= 5) {
+
+          // Quick Win стратегия: Day 1 = 10 задач
+          if (level === 1) {
+            taskConfig = { easy: 10, standard: 0, hard: 0 };
+          } else if (level <= 5) {
             taskConfig = { easy: 30, standard: 0, hard: 0 };
           } else if (level <= 10) {
             taskConfig = { easy: 15, standard: 10, hard: 5 };
           } else {
             taskConfig = { easy: 10, standard: 10, hard: 10 };
           }
-          
+
           const tasks = await aiService.generateTasks(taskConfig, {
             level: level,
             preferences: user.preferences || [],
             antiPatterns: user.anti_patterns || []
           });
-          
+
           await taskService.createTasks(user.telegram_id, tasks);
           await taskHandler.showTodayTasks(ctx, taskService, user, true);
-          
+
         } catch (error) {
           console.error('❌ Ошибка обновления задач:', error.message);
           await ctx.answerCbQuery('Ошибка обновления задач');
@@ -1108,31 +1125,34 @@ bot.on('callback_query', async (ctx) => {
         try {
           const user = ctx.state.user;
           await ctx.answerCbQuery('🤖 Генерирую задачи...');
-          
+
           // Генерируем задачи как обычно
           const level = user.level || 1;
           let taskConfig = {};
 
+          // Quick Win стратегия: Day 1 = 10 задач
           // Этап 1 (Дни 1-5): Easy - 30 очень простых дел
           // Этап 2 (Дни 6-10): Standard - 20 простых + 10 стандартных (БЕЗ сложных!)
           // Этап 3 (Дни 11-15+): Hard - 10 простых + 12 стандартных + 8 сложных
-          if (level <= 5) {
+          if (level === 1) {
+            taskConfig = { easy: 10, standard: 0, hard: 0 };
+          } else if (level <= 5) {
             taskConfig = { easy: 30, standard: 0, hard: 0 };
           } else if (level <= 10) {
             taskConfig = { easy: 20, standard: 10, hard: 0 };
           } else {
             taskConfig = { easy: 10, standard: 12, hard: 8 };
           }
-          
+
           const tasks = await aiService.generateTasks(taskConfig, {
             level: level,
             preferences: user.preferences || [],
             antiPatterns: user.anti_patterns || []
           });
-          
+
           await taskService.createTasks(user.telegram_id, tasks);
           await taskHandler.showTodayTasks(ctx, taskService, user, true);
-          
+
         } catch (error) {
           console.error('❌ Ошибка генерации задач:', error.message);
           await ctx.answerCbQuery('Ошибка генерации задач');
@@ -1155,10 +1175,13 @@ bot.on('callback_query', async (ctx) => {
 
           // Определяем состав задач на основе дня программы
           let requiredTasks = {};
+          // Quick Win стратегия: Day 1 = 10 задач
           // Этап 1 (Дни 1-5): Easy - 30 очень простых дел
           // Этап 2 (Дни 6-10): Standard - 20 простых + 10 стандартных (БЕЗ сложных!)
           // Этап 3 (Дни 11-15+): Hard - 10 простых + 12 стандартных + 8 сложных
-          if (currentDay <= 5) {
+          if (currentDay === 1) {
+            requiredTasks = { easy: 10, standard: 0, hard: 0 };
+          } else if (currentDay <= 5) {
             requiredTasks = { easy: 30, standard: 0, hard: 0 };
           } else if (currentDay <= 10) {
             requiredTasks = { easy: 20, standard: 10, hard: 0 };
@@ -1426,15 +1449,24 @@ bot.on('callback_query', async (ctx) => {
     // Обработчики онбординга
     case 'start':
       if (params[0] === 'onboarding') {
+        // Пользователь кликнул "🚀 Готов попробовать!" - показываем Message 4
         try {
-          console.log('🚀 User started onboarding:', ctx.from.id);
-          await ctx.answerCbQuery('Отлично! Начинаем 🚀');
-
-          // Сначала спрашиваем пол
+          console.log('🚀 User ready to try:', ctx.from.id);
+          await ctx.answerCbQuery('Отлично! 🚀');
+          await startHandler.sendOnboardingMessage4(ctx);
+        } catch (error) {
+          console.error('Error in onboarding message 4:', error);
+          await ctx.answerCbQuery('Ошибка');
+        }
+      } else if (params[0] === 'gender' && params[1] === 'selection') {
+        // Пользователь кликнул "Вперёд! 💪" из Message 4 - показываем выбор пола
+        try {
+          console.log('⚙️ User starting gender selection:', ctx.from.id);
+          await ctx.answerCbQuery('Давай настроим! ⚙️');
           await startHandler.sendGenderSelection(ctx);
         } catch (error) {
-          console.error('Error starting onboarding:', error);
-          await ctx.answerCbQuery('Ошибка при начале онбординга');
+          console.error('Error showing gender selection:', error);
+          await ctx.answerCbQuery('Ошибка');
         }
       }
       break;
@@ -1486,8 +1518,26 @@ _💡 Независимо от выбора, все начинают с про�
       break;
 
     case 'onboarding':
-      // Обработка онбординга: утреннее и вечернее время
-      if (params[0] === 'morning' && ['6', '7', '8', '9', '10', '11'].includes(params[1])) {
+      // Обработка онбординга: утреннее и вечернее время и новые сообщения
+      if (params[0] === 'pain' && params[1] === 'acknowledged') {
+        // Пользователь подтвердил боль - показываем решение
+        try {
+          await ctx.answerCbQuery('Понимаю тебя! 💪');
+          await startHandler.sendOnboardingMessage2(ctx);
+        } catch (error) {
+          console.error('❌ Ошибка onboarding message 2:', error.message);
+          await ctx.answerCbQuery('Ошибка');
+        }
+      } else if (params[0] === 'show' && params[1] === 'proof') {
+        // Показываем социальное доказательство
+        try {
+          await ctx.answerCbQuery('Интересно! 🤔');
+          await startHandler.sendOnboardingMessage3(ctx);
+        } catch (error) {
+          console.error('❌ Ошибка onboarding message 3:', error.message);
+          await ctx.answerCbQuery('Ошибка');
+        }
+      } else if (params[0] === 'morning' && ['6', '7', '8', '9', '10', '11'].includes(params[1])) {
         // Онбординг: утреннее время
         try {
           const user = ctx.state.user;
@@ -1639,6 +1689,32 @@ _💡 Независимо от выбора, все начинают с про�
         await feedbackHandler.startBugReport(ctx);
       } else if (params[0] === 'suggestion') {
         await feedbackHandler.startSuggestion(ctx);
+      }
+      break;
+
+    case 'retention':
+      // Обработка retention feedback (Day 1, 3, 7)
+      if (params[0] === 'fb') {
+        // Формат: retention_fb_1_great, retention_fb_3_unclear, etc.
+        const dayNumber = parseInt(params[1]);
+        const feedbackType = params[2];
+
+        try {
+          await feedbackHandler.handleRetentionFeedback(ctx, dayNumber, feedbackType);
+        } catch (error) {
+          console.error('❌ Error handling retention feedback:', error);
+          await ctx.answerCbQuery('Ошибка сохранения отзыва');
+        }
+      }
+      break;
+
+    case 'analytics':
+      // Обработка analytics callbacks
+      if (params[0] === 'refresh') {
+        await analyticsHandler.handleRefresh(ctx);
+      } else if (params[0] === 'events') {
+        const daysBack = parseInt(params[1]) || 7;
+        await analyticsHandler.showEventStats(ctx, daysBack);
       }
       break;
 

@@ -3,6 +3,7 @@ const { Markup } = require('telegraf');
 const moment = require('moment-timezone');
 const { sendOrEditMessage } = require('../utils/messageUtils');
 const { g, getWord } = require('../utils/genderUtils');
+const { EventLogger, EVENT_TYPES } = require('../services/eventLogger');
 
 class TaskHandler {
   constructor(supabase = null) {
@@ -149,8 +150,45 @@ class TaskHandler {
         const regularTasks = allTasks.filter(t => t.task_type !== 'magic');
         const totalTasks = regularTasks.length;
         const completedTasks = regularTasks.filter(t => t.completed).length;
+        const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
         console.log(`📊 Task completion check: ${completedTasks}/${totalTasks} regular tasks completed (excluding magic)`);
+
+        // Event logging
+        const eventLogger = new EventLogger(this.supabase);
+        const user = ctx.state.user;
+
+        // FIRST_TASK_COMPLETED event
+        if (completedTasks === 1) {
+          await eventLogger.logFirstTaskCompleted(task.telegram_id, {
+            task_type: task.task_type,
+            task_text: task.task_text,
+            day_number: user.level
+          });
+        }
+
+        // DAY_1_COMPLETED_50 event (Day 1, 50%+ completion)
+        if (user.level === 1 && completionRate >= 50 && completionRate < 100) {
+          await eventLogger.logDay1Completed50(task.telegram_id, completionRate);
+        }
+
+        // DAY_1_COMPLETED_100 event (Day 1, 100% completion)
+        if (user.level === 1 && completionRate === 100) {
+          await eventLogger.logDay1Completed100(task.telegram_id, {
+            total_tasks: totalTasks,
+            completion_rate: completionRate
+          });
+        }
+
+        // DAY_COMPLETED event (любой день, 100% completion)
+        if (completionRate === 100 && totalTasks > 0) {
+          await eventLogger.logDayCompleted(task.telegram_id, user.level, {
+            total_tasks: totalTasks,
+            easy: allTasks.filter(t => t.task_type === 'easy' && t.completed).length,
+            standard: allTasks.filter(t => t.task_type === 'standard' && t.completed).length,
+            hard: allTasks.filter(t => t.task_type === 'hard' && t.completed).length
+          });
+        }
 
         if (completedTasks === totalTasks && totalTasks > 0) {
           console.log(`🎉 All tasks completed! Updating streak and incrementing user level`);
@@ -175,6 +213,11 @@ class TaskHandler {
 
           this.sendEpicCompletion(ctx, stats, user).catch(err =>
             console.error('Error sending epic completion:', err)
+          );
+
+          // 3. ПОСЛЕ завершения дня - проверяем триггер retention feedback
+          this.checkRetentionFeedbackTrigger(ctx, currentLevel, task.telegram_id).catch(err =>
+            console.error('Error checking retention feedback trigger:', err)
           );
         }
       });
@@ -880,7 +923,7 @@ ${progressText}`;
     try {
       const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
       const tasks = await taskService.getUserTasksForDate(userId, today);
-      
+
       if (tasks.length === 0) {
         await ctx.editMessageText('Нет задач для удаления!', {
           reply_markup: Markup.inlineKeyboard([
@@ -891,11 +934,11 @@ ${progressText}`;
       }
 
       let message = `❌ *Выберите задачу для удаления:*\n\n`;
-      
+
       const keyboard = [];
       tasks.slice(0, 10).forEach(task => {
-        const taskText = task.task_text.length > 30 
-          ? task.task_text.substring(0, 30) + '...' 
+        const taskText = task.task_text.length > 30
+          ? task.task_text.substring(0, 30) + '...'
           : task.task_text;
         const status = task.completed ? '✅' : '⬜';
         keyboard.push([
@@ -905,9 +948,9 @@ ${progressText}`;
           )
         ]);
       });
-      
+
       keyboard.push([Markup.button.callback('↩️ Назад к меню', 'edit_list_menu')]);
-      
+
       await ctx.editMessageText(message, {
         parse_mode: 'Markdown',
         reply_markup: Markup.inlineKeyboard(keyboard).reply_markup
@@ -915,6 +958,66 @@ ${progressText}`;
     } catch (error) {
       console.error('Error showing delete menu:', error);
       await ctx.answerCbQuery('Ошибка при показе задач для удаления');
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RETENTION FEEDBACK TRIGGERS
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Проверить и отправить retention feedback если пользователь завершил Day 1, 3 или 7
+   * @param {object} ctx - Telegraf context
+   * @param {number} completedDay - День который только что завершили (до инкремента)
+   * @param {number} telegram_id - ID пользователя
+   */
+  async checkRetentionFeedbackTrigger(ctx, completedDay, telegram_id) {
+    try {
+      // Импортируем необходимые сервисы
+      const { FeedbackService } = require('../services/feedbackService');
+      const { FeedbackHandler } = require('./feedbackHandler');
+      const { createClient } = require('@supabase/supabase-js');
+
+      const supabase = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_KEY
+      );
+
+      const feedbackService = new FeedbackService(supabase, ctx.telegram);
+      const feedbackHandler = new FeedbackHandler(feedbackService);
+
+      // День 1, 3 или 7 завершён?
+      if (completedDay === 1 || completedDay === 3 || completedDay === 7) {
+        console.log(`📬 Checking retention feedback for Day ${completedDay}, user ${telegram_id}`);
+
+        // Проверяем отправлял ли уже feedback для этого дня
+        const alreadySent = await feedbackService.hasRetentionFeedback(telegram_id, completedDay);
+
+        if (alreadySent) {
+          console.log(`⏭️ User ${telegram_id} already sent feedback for Day ${completedDay}, skipping`);
+          return;
+        }
+
+        // Небольшая задержка перед показом feedback (чтобы epic completion успел показаться)
+        setTimeout(async () => {
+          try {
+            if (completedDay === 1) {
+              await feedbackHandler.showDay1Feedback(ctx);
+              console.log(`✅ Day 1 feedback shown to user ${telegram_id}`);
+            } else if (completedDay === 3) {
+              await feedbackHandler.showDay3Feedback(ctx);
+              console.log(`✅ Day 3 feedback shown to user ${telegram_id}`);
+            } else if (completedDay === 7) {
+              await feedbackHandler.showDay7Feedback(ctx);
+              console.log(`✅ Day 7 feedback shown to user ${telegram_id}`);
+            }
+          } catch (error) {
+            console.error(`❌ Error showing feedback for Day ${completedDay}:`, error);
+          }
+        }, 3000); // 3 секунды задержки
+      }
+    } catch (error) {
+      console.error('❌ Error in checkRetentionFeedbackTrigger:', error);
     }
   }
 }

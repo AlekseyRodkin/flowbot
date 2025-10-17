@@ -214,6 +214,70 @@ ${feedbackData.message}
       // Не бросаем ошибку, чтобы не сломать основной процесс
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RETENTION FEEDBACK (Day 1, 3, 7)
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Сохранить retention feedback (от кнопок Day 1/3/7)
+   * @param {number} telegram_id - ID пользователя
+   * @param {number} day_number - День программы (1, 3, 7)
+   * @param {string} feedback_type - Тип отзыва (great, good, unclear, not_fit и т.д.)
+   */
+  async saveRetentionFeedback(telegram_id, day_number, feedback_type) {
+    try {
+      const { data, error } = await this.supabase
+        .from('user_feedback')
+        .insert({
+          telegram_id,
+          day_number,
+          feedback_type,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error saving retention feedback:', error);
+        throw error;
+      }
+
+      console.log(`✅ Retention feedback saved: Day ${day_number}, type ${feedback_type} from user ${telegram_id}`);
+      return data;
+    } catch (error) {
+      console.error('❌ Error in saveRetentionFeedback:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Проверить отправлял ли пользователь feedback для конкретного дня
+   * @param {number} telegram_id - ID пользователя
+   * @param {number} day_number - День программы (1, 3, 7)
+   * @returns {Promise<boolean>} - true если уже отправлял
+   */
+  async hasRetentionFeedback(telegram_id, day_number) {
+    try {
+      const { data, error } = await this.supabase
+        .from('user_feedback')
+        .select('id')
+        .eq('telegram_id', telegram_id)
+        .eq('day_number', day_number)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ Error checking retention feedback:', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (error) {
+      console.error('❌ Error in hasRetentionFeedback:', error);
+      return false;
+    }
+  }
 }
 
 module.exports = { FeedbackService };

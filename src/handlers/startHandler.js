@@ -2,6 +2,7 @@
 const { Markup } = require('telegraf');
 const { sendOrEditMessage, clearLastMessageId } = require('../utils/messageUtils');
 const { g } = require('../utils/genderUtils');
+const { EventLogger, EVENT_TYPES } = require('../services/eventLogger');
 
 // Кэш для предотвращения дублирования сообщений
 const lastStartTimestamp = new Map();
@@ -11,19 +12,19 @@ const startHandler = async (ctx, userService) => {
     const telegramUser = ctx.from;
     const userId = telegramUser.id;
     const now = Date.now();
-    
+
     // Проверяем, не был ли /start вызван недавно (в течение 2 секунд)
     const lastStart = lastStartTimestamp.get(userId);
     if (lastStart && (now - lastStart) < 2000) {
       console.log('⚠️ Duplicate /start command ignored for user:', telegramUser.username || telegramUser.id);
       return;
     }
-    
+
     // Обновляем timestamp последнего старта
     lastStartTimestamp.set(userId, now);
-    
+
     console.log('🔍 StartHandler called for:', telegramUser.username || telegramUser.id);
-    
+
     // Получаем или создаем пользователя
     const user = await userService.getOrCreateUser(telegramUser);
     console.log('📊 User data:', {
@@ -33,10 +34,19 @@ const startHandler = async (ctx, userService) => {
       onboarding_completed: user.onboarding_completed,
       current_streak: user.current_streak
     });
-    
+
     if (!user.onboarding_completed) {
       // Новый пользователь - начинаем онбординг
       console.log('🆕 Starting onboarding for new user');
+
+      // Log USER_REGISTERED event
+      const eventLogger = new EventLogger(userService.supabase);
+      await eventLogger.logUserRegistered(userId, {
+        first_name: telegramUser.first_name,
+        username: telegramUser.username,
+        language_code: telegramUser.language_code
+      });
+
       await sendWelcomeMessage(ctx);
     } else {
       // Существующий пользователь
@@ -51,44 +61,93 @@ const startHandler = async (ctx, userService) => {
   }
 };
 
-// Приветственное сообщение
+// Приветственное сообщение (новое эмоциональное onboarding)
 const sendWelcomeMessage = async (ctx) => {
-  const welcomeText = `🔥 *Хватит откладывать на завтра!*
+  const welcomeText = `Привет! 👋
 
-Привет! Я FlowBot — твой персональный коуч по продуктивности.
+Знаешь это чувство когда:
+❌ Куча дел, но не знаешь с чего начать
+❌ Прокрастинируешь весь день
+❌ Вечером ничего не сделал
 
-*Знакомая ситуация?*
-😫 Планируешь много, а делаешь мало
-😫 Прокрастинируешь важные задачи
-😫 К вечеру чувствуешь, что день прошел впустую
-
-*Всего за 15 дней ты получишь:*
-🚀 Продуктивность выше в 3-5 раз
-⚡ Полное избавление от прокрастинации
-🎯 Четкий фокус на важном
-💪 Энергию и драйв каждый день
-✨ Состояние потока как новую привычку
-
-*Секрет в научно обоснованной методике Flow List:*
-📊 Изучена на 10,000+ людей
-🧠 Основана на нейропсихологии
-⭐ 94% участников достигают результата
-
-*Твой путь к потоку (все начинают одинаково):*
-📅 Дни 1-5: Мягкий разгон (простые задачи)
-📈 Дни 6-10: Добавляем сложности
-🔥 Дни 11-15: Устойчивый поток
-🎯 День 16+: Ты в потоке! Можешь продолжать по желанию
-
-*Начнем прямо сейчас?*
-
-🔒 _Все твои данные хранятся только у тебя и никуда не передаются. Никакой рекламы, никакой продажи данных._`;
+Знакомо?`;
 
   const keyboard = Markup.inlineKeyboard([
-    [Markup.button.callback('🚀 Начать!', 'start_onboarding')]
+    [Markup.button.callback('Да, знакомо 😔', 'onboarding_pain_acknowledged')]
   ]);
 
   await sendOrEditMessage(ctx, welcomeText, keyboard);
+};
+
+// Сообщение 2: Решение проблемы
+const sendOnboardingMessage2 = async (ctx) => {
+  const solutionText = `FlowBot решает это так:
+
+✅ Каждое утро готовый список задач
+✅ От простого к сложному (не перегружаю)
+✅ 30 дней → привычка продуктивности
+
+Система основана на исследованиях нейробиологии дофаминовой мотивации.`;
+
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback('Интересно, расскажи больше 🤔', 'onboarding_show_proof')]
+  ]);
+
+  if (ctx.callbackQuery) {
+    await ctx.editMessageText(solutionText, {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard.reply_markup
+    });
+  } else {
+    await sendOrEditMessage(ctx, solutionText, keyboard);
+  }
+};
+
+// Сообщение 3: Социальное доказательство
+const sendOnboardingMessage3 = async (ctx) => {
+  const proofText = `📊 *Результаты пользователей:*
+
+🔥 87% чувствуют эффект уже на 3-й день
+⚡ 64% формируют устойчивую привычку за месяц
+💪 Средний прогресс выполнения: 78%
+
+_Основано на данных beta-тестирования_`;
+
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback('🚀 Готов попробовать!', 'start_onboarding')]
+  ]);
+
+  if (ctx.callbackQuery) {
+    await ctx.editMessageText(proofText, {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard.reply_markup
+    });
+  } else {
+    await sendOrEditMessage(ctx, proofText, keyboard);
+  }
+};
+
+// Сообщение 4: Призыв к действию (переход к onboarding)
+const sendOnboardingMessage4 = async (ctx) => {
+  const ctaText = `Готов попробовать? 🚀
+
+Первый день будет лёгким - всего 10 простых задач.
+Ты точно их закроешь и получишь первую порцию дофамина 😊
+
+Давай настроим время уведомлений:`;
+
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback('Вперёд! 💪', 'start_gender_selection')]
+  ]);
+
+  if (ctx.callbackQuery) {
+    await ctx.editMessageText(ctaText, {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard.reply_markup
+    });
+  } else {
+    await sendOrEditMessage(ctx, ctaText, keyboard);
+  }
 };
 
 // Шаг 0: Выбор пола (добавлен для гендерных обращений)
@@ -339,6 +398,14 @@ const completeOnboarding = async (ctx, userService, difficultyChoice = null) => 
       onboarding_completed: true
     });
 
+    // Log ONBOARDING_COMPLETED event
+    const eventLogger = new EventLogger(userService.supabase);
+    await eventLogger.logOnboardingCompleted(userId, {
+      morning_hour: user.morning_hour,
+      evening_hour: user.evening_hour,
+      timezone: user.timezone
+    });
+
     // Персонализированное приветствие в зависимости от выбора
     let personalMessage = '';
     if (difficultyChoice === 'beginner') {
@@ -556,9 +623,8 @@ const confirmReset = async (ctx, userService, taskService = null) => {
 
     await ctx.answerCbQuery('Прогресс сброшен!');
 
-    // Начинаем онбординг заново
+    // Начинаем онбординг заново с эмоционального приветствия
     await sendWelcomeMessage(ctx);
-    await sendOnboardingStep1(ctx);
   } catch (error) {
     console.error('Error confirming reset:', error);
     await ctx.answerCbQuery('Ошибка при сбросе');
@@ -567,6 +633,9 @@ const confirmReset = async (ctx, userService, taskService = null) => {
 
 module.exports = {
   startHandler,
+  sendOnboardingMessage2,
+  sendOnboardingMessage3,
+  sendOnboardingMessage4,
   sendGenderSelection,
   setUserGender,
   setUserLevel,

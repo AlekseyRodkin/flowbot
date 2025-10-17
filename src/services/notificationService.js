@@ -4,6 +4,7 @@ const cron = require('node-cron');
 const moment = require('moment-timezone');
 const dailyInsights = require('../content/dailyInsights');
 const { getMotivationalMessage } = require('../content/motivationalMessages');
+const { EventLogger, EVENT_TYPES } = require('./eventLogger');
 
 class NotificationService {
   constructor(bot, supabase, taskService, aiService, userService) {
@@ -220,6 +221,23 @@ class NotificationService {
 
     console.log(`✅ Sent morning tasks to user ${user.telegram_id} (day ${user.level})`);
 
+    // Log events based on day number
+    const eventLogger = new EventLogger(this.supabase);
+
+    if (currentDay === 1) {
+      // Day 1: Log TASKS_RECEIVED_DAY_1
+      await eventLogger.logTasksReceivedDay1(user.telegram_id, tasks.length);
+    } else if (currentDay === 2) {
+      // Day 2: Log user returned
+      await eventLogger.logReturnedDay2(user.telegram_id);
+    } else if (currentDay === 7) {
+      // Day 7: Log user returned
+      await eventLogger.logReturnedDay7(user.telegram_id);
+    } else if (currentDay === 30) {
+      // Day 30: Log user completed program
+      await eventLogger.logReturnedDay30(user.telegram_id);
+    }
+
     // Увеличиваем уровень пользователя ПОСЛЕ отправки (для следующего дня)
     const nextLevel = (user.level || 1) + 1;
     await this.supabase
@@ -232,20 +250,23 @@ class NotificationService {
 
   // Получить конфигурацию задач по уровню
   getTaskConfig(level) {
-    // Дни 1-5: Разгон (30 простых)
-    // Дни 6-10: Усложнение (15 простых + 10 средних + 5 сложных)
-    // Дни 11-15: Поток (10 простых + 10 средних + 1 сложная метазадача "Составить список")
-    // Дни 16+: Эксперимент с чудом (10 простых + 10 средних + 1 сложная + 1 магическая)
+    // ОРИГИНАЛЬНАЯ СИСТЕМА FLOWBOT (НЕ МЕНЯТЬ!)
+    // Дни 1-5 (Easy): 30 очень простых задач (точки входа, не процессы)
+    // Дни 6-10 (Mixed Standard): 30 задач (20 простых + 10 средних)
+    // Дни 11-15 (Mixed Complex): 30 задач (10 простых + 10-12 средних + 7-10 сложных включая "лягушки")
+    // Дни 16+: Продолжение паттерна + магическая задача
     if (level <= 5) {
+      // Дни 1-5: Easy level - 30 very simple tasks
       return { easy: 30, standard: 0, hard: 0, magic: false };
     } else if (level <= 10) {
-      return { easy: 15, standard: 10, hard: 5, magic: false };
+      // Дни 6-10: Mixed Standard - 20 simple + 10 standard
+      return { easy: 20, standard: 10, hard: 0, magic: false };
     } else if (level <= 15) {
-      // Для дней 11-15 генерируется только 1 сложная задача (планирование), магической задачи нет
-      return { easy: 10, standard: 10, hard: 1, magic: false };
+      // Дни 11-15: Mixed Complex - 10 simple + 11 standard + 9 complex
+      return { easy: 10, standard: 11, hard: 9, magic: false };
     } else {
-      // Для дней 16+ добавляется магическая задача (эксперимент с чудом)
-      return { easy: 10, standard: 10, hard: 1, magic: true };
+      // Дни 16+: Continue pattern + magic task
+      return { easy: 10, standard: 11, hard: 9, magic: true };
     }
   }
 

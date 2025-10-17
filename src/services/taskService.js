@@ -1,6 +1,7 @@
 // src/services/taskService.js
 const moment = require('moment-timezone');
 const { CustomTaskService } = require('./customTaskService');
+const { EventLogger, EVENT_TYPES } = require('./eventLogger');
 
 class TaskService {
   constructor(supabase) {
@@ -1066,6 +1067,19 @@ class TaskService {
         .eq('telegram_id', telegramId);
 
       console.log(`✅ Streak updated: current=${newStreak}, longest=${newLongest}, total=${newTotal}`);
+
+      // Event logging for streak milestones
+      const eventLogger = new EventLogger(this.supabase);
+
+      if (newStreak === 3) {
+        await eventLogger.logStreak3Days(telegramId);
+      } else if (newStreak === 7) {
+        await eventLogger.logStreak7Days(telegramId);
+      } else if (newStreak === 14) {
+        await eventLogger.logStreak14Days(telegramId);
+      } else if (newStreak === 30) {
+        await eventLogger.logStreak30Days(telegramId);
+      }
 
     } catch (error) {
       console.error('Error in updateStreak:', error);
