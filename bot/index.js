@@ -127,6 +127,19 @@ bot.start(async (ctx) => {
     console.log('Could not delete /start message:', err.message);
   }
 
+  // Убираем системную клавиатуру Telegram (кнопку "Чтобы использовать бота, нажмите здесь")
+  try {
+    await ctx.reply('🔄', Markup.removeKeyboard());
+    // Сразу удаляем это техническое сообщение
+    try {
+      await ctx.telegram.deleteMessage(ctx.chat.id, ctx.message.message_id + 1);
+    } catch (e) {
+      // Игнорируем ошибку если не удалось удалить
+    }
+  } catch (err) {
+    console.log('Could not remove keyboard:', err.message);
+  }
+
   const startParam = ctx.message.text.split(' ')[1];
   const user = ctx.state.user;
 
