@@ -119,6 +119,7 @@ bot.use(async (ctx, next) => {
 
 // Команда /start
 bot.start(async (ctx) => {
+  const startMessageId = ctx.message.message_id;
   const startParam = ctx.message.text.split(' ')[1];
   const user = ctx.state.user;
 
@@ -140,6 +141,17 @@ bot.start(async (ctx) => {
   }
 
   await startHandler.startHandler(ctx, userService);
+
+  // Удаляем команду /start пользователя ПОСЛЕ отправки ответа
+  // Задержка 500мс чтобы приветственное сообщение успело отправиться
+  setTimeout(async () => {
+    try {
+      await ctx.telegram.deleteMessage(ctx.chat.id, startMessageId);
+      console.log('✅ /start message deleted for user:', ctx.from?.username || ctx.from?.id);
+    } catch (err) {
+      console.log('⚠️ Could not delete /start message:', err.message);
+    }
+  }, 500);
 });
 
 // Команда /reset - сбросить прогресс и начать заново
