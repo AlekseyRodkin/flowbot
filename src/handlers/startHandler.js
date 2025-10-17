@@ -13,9 +13,9 @@ const startHandler = async (ctx, userService) => {
     const userId = telegramUser.id;
     const now = Date.now();
 
-    // Проверяем, не был ли /start вызван недавно (в течение 2 секунд)
+    // Проверяем, не был ли /start вызван недавно (в течение 10 секунд)
     const lastStart = lastStartTimestamp.get(userId);
-    if (lastStart && (now - lastStart) < 2000) {
+    if (lastStart && (now - lastStart) < 10000) {
       console.log('⚠️ Duplicate /start command ignored for user:', telegramUser.username || telegramUser.id);
       return;
     }
