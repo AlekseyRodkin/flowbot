@@ -7,16 +7,29 @@ const { EventLogger, EVENT_TYPES } = require('../services/eventLogger');
 // Кэш для предотвращения дублирования сообщений
 const lastStartTimestamp = new Map();
 
-const startHandler = async (ctx, userService) => {
+const startHandler = async (ctx, userService, isRepeated = false) => {
   try {
     const telegramUser = ctx.from;
     const userId = telegramUser.id;
     const now = Date.now();
 
-    // Проверяем, не был ли /start вызван недавно (в течение 10 секунд)
+    // Проверяем, не был ли /start вызван недавно (в течение 30 секунд)
     const lastStart = lastStartTimestamp.get(userId);
-    if (lastStart && (now - lastStart) < 10000) {
-      console.log('⚠️ Duplicate /start command ignored for user:', telegramUser.username || telegramUser.id);
+    if (lastStart && (now - lastStart) < 30000) {
+      console.log('⚠️ Duplicate /start command detected for user:', telegramUser.username || telegramUser.id);
+      console.log(`   Time since last /start: ${now - lastStart}ms`);
+      
+      // Для повторных команд показываем краткое сообщение или главное меню
+      const user = await userService.getOrCreateUser(telegramUser);
+      if (user.onboarding_completed) {
+        // Если онбординг завершен - показываем главное меню
+        console.log('   → Showing main menu for repeated /start');
+        const taskService = ctx.state.taskService || null;
+        await sendMainMenu(ctx, user, false, taskService);
+      } else {
+        // Если онбординг не завершен - игнорируем
+        console.log('   → Ignoring repeated /start during onboarding');
+      }
       return;
     }
 

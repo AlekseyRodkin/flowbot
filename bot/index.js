@@ -122,6 +122,15 @@ bot.start(async (ctx) => {
   const startMessageId = ctx.message.message_id;
   const startParam = ctx.message.text.split(' ')[1];
   const user = ctx.state.user;
+  
+  // Детальное логирование для отладки дублирования
+  console.log('\n🚀 /start command received:');
+  console.log(`   User: @${ctx.from.username || ctx.from.id}`);
+  console.log(`   Message ID: ${startMessageId}`);
+  console.log(`   Param: ${startParam || 'none'}`);
+  console.log(`   Update type: ${ctx.updateType}`);
+  console.log(`   Chat type: ${ctx.chat.type}`);
+  console.log(`   Time: ${new Date().toISOString()}`);
 
   // Проверяем, есть ли реферальный код
   if (startParam && startParam.startsWith('ref_')) {
@@ -140,18 +149,19 @@ bot.start(async (ctx) => {
     }
   }
 
-  await startHandler.startHandler(ctx, userService);
+  // Проверяем специальный параметр для кнопки "Начать"
+  if (startParam === 'welcome') {
+    console.log('   💡 This is a welcome button click, handling differently...');
+    // Если это нажатие на кнопку из приветственного сообщения,
+    // просто вызываем обработчик без дополнительных действий
+    await startHandler.startHandler(ctx, userService);
+  } else {
+    // Обычная команда /start
+    await startHandler.startHandler(ctx, userService);
+  }
 
-  // Удаляем команду /start пользователя ПОСЛЕ отправки ответа
-  // Задержка 500мс чтобы приветственное сообщение успело отправиться
-  setTimeout(async () => {
-    try {
-      await ctx.telegram.deleteMessage(ctx.chat.id, startMessageId);
-      console.log('✅ /start message deleted for user:', ctx.from?.username || ctx.from?.id);
-    } catch (err) {
-      console.log('⚠️ Could not delete /start message:', err.message);
-    }
-  }, 500);
+  // НЕ удаляем команду /start, чтобы избежать системной подсказки Telegram
+  console.log('   ℹ️ /start message NOT deleted to prevent Telegram system hint');
 });
 
 // Команда /reset - сбросить прогресс и начать заново

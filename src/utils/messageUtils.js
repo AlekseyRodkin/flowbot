@@ -40,12 +40,12 @@ async function sendOrEditMessage(ctx, text, extra = {}) {
 
     // Отправляем новое сообщение
     const result = await ctx.replyWithMarkdown(text, extra);
-    
+
     // Сохраняем ID нового сообщения
     if (result && result.message_id) {
       ctx.session.lastBotMessageId = result.message_id;
     }
-    
+
     return result;
   } catch (error) {
     console.error('❌ Error in sendOrEditMessage:', error);
