@@ -119,9 +119,17 @@ bot.use(async (ctx, next) => {
 
 // Команда /start
 bot.start(async (ctx) => {
+  // Удаляем сообщение пользователя с командой /start для чистого интерфейса
+  try {
+    await ctx.deleteMessage();
+  } catch (err) {
+    // Игнорируем ошибку если не удалось удалить (например, в группах)
+    console.log('Could not delete /start message:', err.message);
+  }
+
   const startParam = ctx.message.text.split(' ')[1];
   const user = ctx.state.user;
-  
+
   // Проверяем, есть ли реферальный код
   if (startParam && startParam.startsWith('ref_')) {
     const referralCode = startParam.substring(4);
@@ -138,7 +146,7 @@ bot.start(async (ctx) => {
       );
     }
   }
-  
+
   await startHandler.startHandler(ctx, userService);
 });
 
