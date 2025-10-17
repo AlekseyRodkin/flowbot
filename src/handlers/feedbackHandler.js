@@ -259,26 +259,43 @@ class FeedbackHandler {
 
       // Благодарим пользователя
       let responseMessage = '';
+      let keyboard;
 
       // Позитивный feedback
       if (['great', 'getting_rhythm', 'works'].includes(feedbackType)) {
         responseMessage = `✅ *Отлично!* 🎉\n\nСпасибо за отзыв! Продолжай в том же духе! 💪`;
+        keyboard = Markup.inlineKeyboard([
+          [Markup.button.callback('💬 Обратная связь', 'show_feedback')],
+          [Markup.button.callback('🏠 Главное меню', 'show_main_menu')]
+        ]);
       }
       // Нейтральный feedback
       else if (['unclear', 'have_questions', 'not_sure', 'slow_progress'].includes(feedbackType)) {
-        responseMessage = `✅ *Спасибо за отзыв!* 📝\n\nМы учтём твои комментарии и будем улучшать бота.\n\nЕсли есть конкретные вопросы - используй /feedback для связи! 💬`;
+        responseMessage = `✅ *Спасибо за отзыв!* 📝\n\nМы учтём твои комментарии и будем улучшать бота.\n\nЕсли есть вопросы - жми кнопку ниже! 💬`;
+        keyboard = Markup.inlineKeyboard([
+          [Markup.button.callback('💬 Обратная связь', 'show_feedback')],
+          [Markup.button.callback('🏠 Главное меню', 'show_main_menu')]
+        ]);
       }
       // Негативный feedback
       else if (['not_fit', 'not_for_me', 'too_hard', 'want_stop', 'stopping'].includes(feedbackType)) {
         responseMessage = `😔 *Жаль, что не подошло...*\n\nСпасибо за честность! Твой отзыв поможет нам стать лучше.\n\nЕсли хочешь вернуться - я буду тут! 🤗`;
+        keyboard = Markup.inlineKeyboard([
+          [Markup.button.callback('💬 Обратная связь', 'show_feedback')],
+          [Markup.button.callback('🏠 Главное меню', 'show_main_menu')]
+        ]);
       }
       else {
         responseMessage = `✅ *Спасибо за отзыв!* 🙏`;
+        keyboard = Markup.inlineKeyboard([
+          [Markup.button.callback('💬 Обратная связь', 'show_feedback')],
+          [Markup.button.callback('🏠 Главное меню', 'show_main_menu')]
+        ]);
       }
 
       await ctx.editMessageText(responseMessage, {
         parse_mode: 'Markdown',
-        reply_markup: undefined
+        reply_markup: keyboard.reply_markup
       });
 
       await ctx.answerCbQuery('Спасибо! 🙏');
