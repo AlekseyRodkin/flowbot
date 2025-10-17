@@ -1764,34 +1764,43 @@ _💡 Независимо от выбора, все начинают с про�
             return;
           }
 
-          // Получаем статистику дня
-          const stats = await taskService.getDailyStats(user.telegram_id);
+          await ctx.answerCbQuery('Отличная работа! 🎉');
 
-          const completionMessage = `
-🎯 *День ${user.level} завершён!*
+          // Удаляем epic message
+          try {
+            await ctx.deleteMessage();
+          } catch (err) {
+            console.log('Could not delete epic message:', err.message);
+          }
 
-📊 *Твои результаты:*
-✅ Выполнено задач: ${stats.completed_tasks}/${stats.total_tasks}
-💚 Простые: ${stats.easy_completed}
-💛 Средние: ${stats.standard_completed}
-❤️ Сложные: ${stats.hard_completed}
-✨ Магическая: ${stats.magic_completed ? '✅' : '⬜'}
+          // Через 3 секунды показываем retention feedback (если это День 1, 3 или 7)
+          const completedDay = (user.level || 1) - 1; // level уже увеличен, вычитаем 1
 
-🔥 Flow Score: ${stats.flow_score || 0}
+          setTimeout(async () => {
+            try {
+              // Проверяем отправлял ли уже feedback для этого дня
+              const alreadySent = await feedbackService.hasRetentionFeedback(user.telegram_id, completedDay);
+              if (alreadySent) {
+                console.log(`⏭️ User ${user.telegram_id} already sent feedback for Day ${completedDay}, skipping`);
+                return;
+              }
 
-${stats.completed_tasks >= 20 ? '🏆 Отличная работа!' : stats.completed_tasks >= 10 ? '👍 Хороший результат!' : '💪 Продолжай в том же духе!'}
+              // Показываем feedback в зависимости от дня
+              if (completedDay === 1) {
+                await feedbackHandler.showDay1Feedback(ctx);
+                console.log(`✅ Day 1 feedback shown to user ${user.telegram_id}`);
+              } else if (completedDay === 3) {
+                await feedbackHandler.showDay3Feedback(ctx);
+                console.log(`✅ Day 3 feedback shown to user ${user.telegram_id}`);
+              } else if (completedDay === 7) {
+                await feedbackHandler.showDay7Feedback(ctx);
+                console.log(`✅ Day 7 feedback shown to user ${user.telegram_id}`);
+              }
+            } catch (error) {
+              console.error(`❌ Error showing feedback for Day ${completedDay}:`, error);
+            }
+          }, 3000); // 3 секунды задержки
 
-_Отдохни и набирайся сил для завтрашнего дня!_
-          `.trim();
-
-          await ctx.editMessageText(completionMessage, {
-            parse_mode: 'Markdown',
-            reply_markup: Markup.inlineKeyboard([
-              [Markup.button.callback('🏠 Главное меню', 'show_main_menu')]
-            ]).reply_markup
-          });
-
-          await ctx.answerCbQuery('✅ День завершён!');
         } catch (error) {
           console.error('Error completing day:', error);
           await ctx.answerCbQuery('Ошибка при завершении дня');

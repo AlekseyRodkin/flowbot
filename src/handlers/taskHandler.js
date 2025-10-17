@@ -215,10 +215,8 @@ class TaskHandler {
             console.error('Error sending epic completion:', err)
           );
 
-          // 3. ПОСЛЕ завершения дня - проверяем триггер retention feedback
-          this.checkRetentionFeedbackTrigger(ctx, currentLevel, task.telegram_id).catch(err =>
-            console.error('Error checking retention feedback trigger:', err)
-          );
+          // Retention feedback теперь показывается ТОЛЬКО после нажатия кнопки "🎯 Завершить день"
+          // См. обработчик bot.action('complete_day') в bot/index.js
         }
       });
 
