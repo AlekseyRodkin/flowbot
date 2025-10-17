@@ -119,6 +119,14 @@ bot.use(async (ctx, next) => {
 
 // Команда /start
 bot.start(async (ctx) => {
+  // Удаляем команду /start из чата (если у бота есть права)
+  try {
+    await ctx.deleteMessage();
+  } catch (err) {
+    // Игнорируем ошибку если нет прав на удаление
+    console.log('Could not delete /start command:', err.message);
+  }
+
   const startParam = ctx.message.text.split(' ')[1];
   const user = ctx.state.user;
 
