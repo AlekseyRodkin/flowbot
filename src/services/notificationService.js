@@ -250,13 +250,17 @@ class NotificationService {
 
   // Получить конфигурацию задач по уровню
   getTaskConfig(level) {
-    // ОРИГИНАЛЬНАЯ СИСТЕМА FLOWBOT (НЕ МЕНЯТЬ!)
-    // Дни 1-5 (Easy): 30 очень простых задач (точки входа, не процессы)
+    // ОРИГИНАЛЬНАЯ СИСТЕМА FLOWBOT С МЯГКИМ ВХОДОМ НА ДЕНЬ 1
+    // День 1 (Quick Win): 10 очень простых задач (мягкий вход для привыкания)
+    // Дни 2-5 (Easy): 30 очень простых задач (точки входа, не процессы)
     // Дни 6-10 (Mixed Standard): 30 задач (20 простых + 10 средних)
     // Дни 11-15 (Mixed Complex): 30 задач (10 простых + 10-12 средних + 7-10 сложных включая "лягушки")
     // Дни 16+: Продолжение паттерна + магическая задача
-    if (level <= 5) {
-      // Дни 1-5: Easy level - 30 very simple tasks
+    if (level === 1) {
+      // День 1: Мягкий вход - 10 простых задач для первого знакомства
+      return { easy: 10, standard: 0, hard: 0, magic: false };
+    } else if (level <= 5) {
+      // Дни 2-5: Easy level - 30 very simple tasks
       return { easy: 30, standard: 0, hard: 0, magic: false };
     } else if (level <= 10) {
       // Дни 6-10: Mixed Standard - 20 simple + 10 standard
