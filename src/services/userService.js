@@ -99,27 +99,6 @@ class UserService {
   }
 
   // Получить пользователя по Telegram ID (основной метод)
-  async getUserById(telegramId) {
-    try {
-      const { data, error } = await this.supabase
-        .from('users')
-        .select('*')
-        .eq('telegram_id', telegramId)
-        .single();
-      
-      if (error) {
-        console.error('Error getting user by id:', error);
-        return null;
-      }
-      
-      return await this.enrichUserData(data);
-    } catch (error) {
-      console.error('Error in getUserById:', error);
-      return null;
-    }
-  }
-
-  // Получить пользователя по Telegram ID
   async getUserByTelegramId(telegramId) {
     try {
       const { data, error } = await this.supabase
@@ -127,17 +106,22 @@ class UserService {
         .select('*')
         .eq('telegram_id', telegramId)
         .single();
-      
+
       if (error) {
         console.error('Error getting user by telegram id:', error);
         return null;
       }
-      
+
       return await this.enrichUserData(data);
     } catch (error) {
       console.error('Error in getUserByTelegramId:', error);
       return null;
     }
+  }
+
+  // Алиас для обратной совместимости
+  async getUserById(telegramId) {
+    return this.getUserByTelegramId(telegramId);
   }
 
   // Получить статистику пользователя
@@ -435,44 +419,23 @@ class UserService {
     }
   }
 
-  // Получить пользователя по Telegram ID (альтернативный метод для webhooks)
-  async getUserByTelegramId(telegramId) {
-    try {
-      const { data, error } = await this.supabase
-        .from('users')
-        .select('*')
-        .eq('telegram_id', telegramId)
-        .single();
-      
-      if (error) {
-        console.error('Error getting user by telegram_id:', error);
-        return null;
-      }
-      
-      return await this.enrichUserData(data);
-    } catch (error) {
-      console.error('Error in getUserByTelegramId:', error);
-      return null;
-    }
-  }
-
-  // Получить пользователя по ID (для webhooks)
-  async getUserById(id) {
+  // Получить пользователя по внутреннему ID (для webhooks и других случаев)
+  async getUserByInternalId(id) {
     try {
       const { data, error } = await this.supabase
         .from('users')
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (error) {
-        console.error('Error getting user by id:', error);
+        console.error('Error getting user by internal id:', error);
         return null;
       }
-      
+
       return await this.enrichUserData(data);
     } catch (error) {
-      console.error('Error in getUserById:', error);
+      console.error('Error in getUserByInternalId:', error);
       return null;
     }
   }

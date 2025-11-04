@@ -480,13 +480,21 @@ class NotificationService {
   scheduleTestCycle1946() {
     const jobName = 'test_cycle_1946';
 
+    // Проверяем переменную окружения для тестового пользователя
+    const testTelegramId = process.env.TEST_TELEGRAM_ID;
+
+    if (!testTelegramId) {
+      console.log('ℹ️  TEST_TELEGRAM_ID not set, skipping test cycle scheduling');
+      return;
+    }
+
     // Проверяем, не зарегистрирована ли уже эта задача
     if (this.scheduledJobs.has(jobName)) {
       console.log('⚠️ Test cycle already scheduled, skipping duplicate registration');
       return;
     }
 
-    console.log('🧪 Scheduling TEST CYCLE at 19:46 MSK...');
+    console.log(`🧪 Scheduling TEST CYCLE at 19:46 MSK for user ${testTelegramId}...`);
 
     const job = cron.schedule('46 19 * * *', async () => {
       console.log(`\n🧪 ═══════════════════════════════════════`);
@@ -494,13 +502,13 @@ class NotificationService {
       console.log(`🧪 ═══════════════════════════════════════\n`);
 
       try {
-        // Получаем тестового пользователя (твой telegram_id)
-        const testTelegramId = 272559647;
+        // Получаем тестового пользователя из переменной окружения
+        const testTelegramIdParsed = parseInt(testTelegramId, 10);
 
         const { data: user, error } = await this.supabase
           .from('users')
           .select('*')
-          .eq('telegram_id', testTelegramId)
+          .eq('telegram_id', testTelegramIdParsed)
           .single();
 
         if (error || !user) {
@@ -528,7 +536,7 @@ class NotificationService {
         const { data: refreshedUser } = await this.supabase
           .from('users')
           .select('*')
-          .eq('telegram_id', testTelegramId)
+          .eq('telegram_id', testTelegramIdParsed)
           .single();
 
         await this.sendTasksToUser(refreshedUser || user);
@@ -538,13 +546,13 @@ class NotificationService {
         const { data: finalUser } = await this.supabase
           .from('users')
           .select('level')
-          .eq('telegram_id', testTelegramId)
+          .eq('telegram_id', testTelegramIdParsed)
           .single();
 
         const { data: botMessages } = await this.supabase
           .from('bot_messages')
           .select('*')
-          .eq('telegram_id', testTelegramId)
+          .eq('telegram_id', testTelegramIdParsed)
           .order('sent_at', { ascending: false });
 
         console.log(`\n📊 ═══════════════════════════════════════`);

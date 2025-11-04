@@ -843,10 +843,10 @@ class TaskService {
   async bulkCompleteAllTasks(telegramId) {
     try {
       const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
-      
+
       const { data, error } = await this.supabase
         .from('tasks')
-        .update({ completed: true })
+        .update({ completed: true, completed_at: new Date().toISOString() })
         .eq('telegram_id', telegramId)
         .eq('date', today)
         .select();
@@ -856,8 +856,10 @@ class TaskService {
         throw error;
       }
 
-      // Обновляем статистику дня
-      await this.updateDailyStats(telegramId, today);
+      // Пересчитываем статистику для каждого типа задач
+      for (const task of data) {
+        await this.updateDailyStats(telegramId, today, task.task_type, 'complete');
+      }
 
       return data;
     } catch (error) {
@@ -870,10 +872,10 @@ class TaskService {
   async bulkUncompleteAllTasks(telegramId) {
     try {
       const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
-      
+
       const { data, error } = await this.supabase
         .from('tasks')
-        .update({ completed: false })
+        .update({ completed: false, completed_at: null })
         .eq('telegram_id', telegramId)
         .eq('date', today)
         .select();
@@ -883,8 +885,10 @@ class TaskService {
         throw error;
       }
 
-      // Обновляем статистику дня
-      await this.updateDailyStats(telegramId, today);
+      // Пересчитываем статистику для каждого типа задач
+      for (const task of data) {
+        await this.updateDailyStats(telegramId, today, task.task_type, 'uncomplete');
+      }
 
       return data;
     } catch (error) {
@@ -897,7 +901,7 @@ class TaskService {
   async bulkDeleteCompletedTasks(telegramId) {
     try {
       const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
-      
+
       const { data, error } = await this.supabase
         .from('tasks')
         .delete()
@@ -911,8 +915,10 @@ class TaskService {
         throw error;
       }
 
-      // Обновляем статистику дня
-      await this.updateDailyStats(telegramId, today);
+      // Пересчитываем статистику - удаляем задачи из подсчета
+      for (const task of data) {
+        await this.updateDailyStats(telegramId, today, task.task_type, 'uncomplete');
+      }
 
       return data;
     } catch (error) {
