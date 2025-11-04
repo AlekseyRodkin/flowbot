@@ -191,25 +191,15 @@ class TaskHandler {
         }
 
         if (completedTasks === totalTasks && totalTasks > 0) {
-          console.log(`🎉 All tasks completed! Updating streak and incrementing user level`);
+          console.log(`🎉 All tasks completed! Updating streak`);
           const user = ctx.state.user; // Получаем пользователя из контекста
 
-          // 1. СНАЧАЛА обновляем стрик (заслуженно!)
+          // Обновляем стрик (заслуженно!)
           await taskService.updateStreak(task.telegram_id);
 
-          // 2. ПОТОМ увеличиваем уровень пользователя при завершении всех задач
-          const currentLevel = user.level || 1;
-          const nextLevel = currentLevel + 1;
-
-          await this.supabase
-            .from('users')
-            .update({ level: nextLevel })
-            .eq('telegram_id', task.telegram_id);
-
-          console.log(`📈 User ${task.telegram_id} level increased: ${currentLevel} → ${nextLevel}`);
-
-          // Обновляем user object для использования в сообщении
-          user.level = nextLevel;
+          // ⚠️ ВАЖНО: Level увеличивается ТОЛЬКО при отправке утренних задач (notificationService.js)
+          // НЕ увеличиваем level здесь, чтобы избежать двойного увеличения!
+          // Логика: Утро (level=N) → задачи для дня N → level=N+1 → Вечер показывает "Завтра день N+1"
 
           this.sendEpicCompletion(ctx, stats, user).catch(err =>
             console.error('Error sending epic completion:', err)
