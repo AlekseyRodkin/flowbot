@@ -18,7 +18,7 @@ class TaskHandler {
       if (!ctx.session) {
         ctx.session = {};
       }
-      
+
       const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
       const tasks = await taskService.getUserTasksForDate(user.id, today);
 
@@ -30,8 +30,11 @@ class TaskHandler {
       // Группируем задачи по типам
       const tasksByType = this.groupTasksByType(tasks);
 
-      // Используем user.level как единственный источник истины для номера дня
-      const currentDay = user.level || 1;
+      // ⚠️ ВАЖНО: Определяем день программы правильно!
+      // Level увеличивается УТРОМ после отправки задач.
+      // Значит задачи созданы для дня (level - 1)
+      // Пример: level=11 → задачи для дня 10
+      const currentDay = Math.max(1, (user.level || 1) - 1);
 
       // Формируем сообщение
       let message = `📅 *Мои задачи на сегодня*\n`;
@@ -40,15 +43,15 @@ class TaskHandler {
       } else {
         message += `День ${currentDay} (программа завершена! 🎉)\n\n`;
       }
-      
+
       // Счетчики выполнения
       const completed = tasks.filter(t => t.completed).length;
       const total = tasks.length;
       const percentage = Math.round((completed / total) * 100);
-      
+
       message += `Прогресс: ${completed}/${total} (${percentage}%)\n`;
       message += this.getProgressBar(percentage) + '\n\n';
-      
+
       // Выводим задачи по категориям
       if (tasksByType.easy.length > 0) {
         message += `💚 *Простые задачи:*\n`;
@@ -62,7 +65,8 @@ class TaskHandler {
 
       // Сложные задачи - показываем с плейсхолдером если нет
       const hardTasksCount = tasksByType.hard.length;
-      const hardTasksExpected = user.level >= 11 ? 8 : 0;
+      // ⚠️ ИСПОЛЬЗУЕМ currentDay вместо user.level!
+      const hardTasksExpected = currentDay >= 11 ? 8 : 0;
 
       if (hardTasksExpected > 0) {
         message += `\n🔴 *Сложные задачи (${hardTasksCount}/${hardTasksExpected}):*\n`;
@@ -699,8 +703,10 @@ _Ты это ${g(user, 'заслужил', 'заслужила')}!_
   // Показать выбор режима создания задач
   async showTaskCreationModeSelection(ctx, user, editMessage = false) {
     try {
-      // Используем user.level как единственный источник истины для номера дня
-      const currentDay = user.level || 1;
+      // ⚠️ ВАЖНО: Level увеличивается УТРОМ после отправки задач.
+      // Если задач нет, то либо они были удалены, либо не были созданы.
+      // В любом случае день = (level - 1), но минимум 1
+      const currentDay = Math.max(1, (user.level || 1) - 1);
 
       let progressText;
       if (currentDay <= 15) {

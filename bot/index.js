@@ -760,13 +760,17 @@ bot.on('callback_query', async (ctx) => {
           
           // Используем editMessageText для изменения существующего сообщения
           const user = ctx.state.user;
+          // ⚠️ ВАЖНО: Level увеличивается УТРОМ после отправки задач.
+          // Текущий день программы = level - 1
+          const currentDay = Math.max(1, (user.level || 1) - 1);
+
           const message = `⚙️ *Настройки*\n\n` +
             `🌅 Утренние задачи: ${user.morning_hour || 8}:00\n` +
             `🌙 Вечерняя рефлексия: ${user.evening_hour || 21}:00\n` +
             `🌍 Часовой пояс: ${user.timezone || 'Europe/Moscow'}\n` +
             `🌐 Язык: ${user.language === 'ru' ? 'Русский' : 'English'}\n` +
             `💎 Подписка: ${user.subscription_type === 'pro' ? 'Pro' : 'Бесплатная'}\n` +
-            `📅 День программы: ${user.level <= 15 ? `${user.level}/15` : `${user.level} (ты в потоке! 🎉)`}\n\n` +
+            `📅 День программы: ${currentDay <= 15 ? `${currentDay}/15` : `${currentDay} (ты в потоке! 🎉)`}\n\n` +
             `Что хочешь изменить?`;
 
           const keyboard = Markup.inlineKeyboard([
@@ -807,13 +811,17 @@ bot.on('callback_query', async (ctx) => {
           
           // Используем editMessageText для изменения существующего сообщения
           const user = ctx.state.user;
+          // ⚠️ ВАЖНО: Level увеличивается УТРОМ после отправки задач.
+          // Текущий день программы = level - 1
+          const currentDay = Math.max(1, (user.level || 1) - 1);
+
           const message = `⚙️ *Настройки*\n\n` +
             `🌅 Утренние задачи: ${user.morning_hour || 8}:00\n` +
             `🌙 Вечерняя рефлексия: ${user.evening_hour || 21}:00\n` +
             `🌍 Часовой пояс: ${user.timezone || 'Europe/Moscow'}\n` +
             `🌐 Язык: ${user.language === 'ru' ? 'Русский' : 'English'}\n` +
             `💎 Подписка: ${user.subscription_type === 'pro' ? 'Pro' : 'Бесплатная'}\n` +
-            `📅 День программы: ${user.level <= 15 ? `${user.level}/15` : `${user.level} (ты в потоке! 🎉)`}\n\n` +
+            `📅 День программы: ${currentDay <= 15 ? `${currentDay}/15` : `${currentDay} (ты в потоке! 🎉)`}\n\n` +
             `Что хочешь изменить?`;
 
           const keyboard = Markup.inlineKeyboard([
@@ -1174,8 +1182,10 @@ bot.on('callback_query', async (ctx) => {
         try {
           const user = ctx.state.user;
 
+          // ⚠️ ВАЖНО: Level увеличивается УТРОМ после отправки задач.
           // Получаем реальное количество активных дней из статистики
-          let currentDay = user.level || 1;
+          // Fallback: (level - 1)
+          let currentDay = Math.max(1, (user.level || 1) - 1);
           try {
             const stats = await userService.getUserStats(user.telegram_id);
             if (stats && stats.totalDays !== undefined) {

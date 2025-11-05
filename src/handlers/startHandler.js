@@ -468,14 +468,15 @@ const getMotivationalMessage = (percentage) => {
 
 // Главное меню для существующих пользователей
 const sendMainMenu = async (ctx, user, editMessage = false, taskService = null) => {
-  // День программы = user.level (единственный источник истины для номера дня)
-  // НЕ использовать stats.totalDays - это количество активных дней, а не номер дня программы
-  const currentDay = user.level || 1;
+  // ⚠️ ВАЖНО: Level увеличивается УТРОМ после отправки задач.
+  // Значит текущие задачи созданы для дня (level - 1)
+  // Пример: level=11 → задачи для дня 10
+  const currentDay = Math.max(1, (user.level || 1) - 1);
 
   // Получаем стрик из базы данных
   const streak = user.current_streak || 0;
 
-  console.log(`📊 Showing menu - Day: ${currentDay} (program day), Streak: ${streak} for user: ${user.telegram_id}`);
+  console.log(`📊 Showing menu - Day: ${currentDay} (program day), Level: ${user.level}, Streak: ${streak} for user: ${user.telegram_id}`);
 
   // Формируем компактный прогресс день + стрик
   let progressLine;
