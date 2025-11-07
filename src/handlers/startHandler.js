@@ -468,10 +468,10 @@ const getMotivationalMessage = (percentage) => {
 
 // Главное меню для существующих пользователей
 const sendMainMenu = async (ctx, user, editMessage = false, taskService = null) => {
-  // ⚠️ ВАЖНО: Level увеличивается УТРОМ после отправки задач.
-  // Значит текущие задачи созданы для дня (level - 1)
-  // Пример: level=11 → задачи для дня 10
-  const currentDay = Math.max(1, (user.level || 1) - 1);
+  // ⚠️ ВАЖНО: Level увеличивается при ЗАВЕРШЕНИИ всех задач дня.
+  // Значит текущие задачи соответствуют текущему level
+  // Пример: level=10 → задачи для дня 10 → при завершении → level=11
+  const currentDay = user.level || 1;
 
   // Получаем стрик из базы данных
   const streak = user.current_streak || 0;

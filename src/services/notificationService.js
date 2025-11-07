@@ -238,14 +238,9 @@ class NotificationService {
       await eventLogger.logReturnedDay30(user.telegram_id);
     }
 
-    // Увеличиваем уровень пользователя ПОСЛЕ отправки (для следующего дня)
-    const nextLevel = (user.level || 1) + 1;
-    await this.supabase
-      .from('users')
-      .update({ level: nextLevel })
-      .eq('telegram_id', user.telegram_id);
-
-    console.log(`📈 User ${user.telegram_id} level increased: ${user.level} → ${nextLevel}`);
+    // ⚠️ ВАЖНО: Level НЕ увеличивается здесь!
+    // Level увеличивается только при завершении всех задач дня (taskHandler.js)
+    // Это позволяет пользователю повторять дни если не завершил задачи
   }
 
   // Получить конфигурацию задач по уровню
