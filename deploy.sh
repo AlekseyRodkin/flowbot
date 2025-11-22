@@ -13,11 +13,16 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# Загружаем NVM если доступен
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
 # Переходим в директорию проекта
 cd "$(dirname "$0")"
 PROJECT_DIR="$(pwd)"
 
 echo -e "${YELLOW}📁 Project directory: $PROJECT_DIR${NC}"
+echo -e "${YELLOW}🔧 Node version: $(node --version 2>/dev/null || echo 'not found')${NC}"
 
 # Проверка изменений в git
 echo -e "${YELLOW}📡 Checking for updates...${NC}"
