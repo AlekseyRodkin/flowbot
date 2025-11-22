@@ -43,6 +43,10 @@ mkdir -p $BACKUP_DIR
 cp -r bot/ src/ $BACKUP_DIR/ 2>/dev/null || echo "Some files not backed up"
 echo -e "${GREEN}✅ Backup created: $BACKUP_DIR${NC}"
 
+# Сохраняем локальные изменения перед pull
+echo -e "${YELLOW}💾 Stashing local changes...${NC}"
+git stash
+
 # Обновление кода
 echo -e "${YELLOW}⬇️  Pulling latest changes...${NC}"
 git pull origin main
