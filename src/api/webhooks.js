@@ -4,6 +4,8 @@ const { userService } = require('../services/userService');
 const { taskService } = require('../services/taskService');
 const { taskHandler } = require('../handlers/taskHandler');
 const moment = require('moment-timezone');
+const { exec } = require('child_process');
+const path = require('path');
 
 const router = express.Router();
 
@@ -22,7 +24,53 @@ const authenticateApiKey = (req, res, next) => {
   next();
 };
 
-// Применяем middleware ко всем маршрутам
+// Эндпоинт для GitHub webhook (БЕЗ аутентификации API ключом)
+router.post('/github-deploy', async (req, res) => {
+  try {
+    console.log('🚀 GitHub webhook received:', {
+      timestamp: new Date().toISOString(),
+      ref: req.body.ref,
+      repository: req.body.repository?.full_name,
+      pusher: req.body.pusher?.name
+    });
+
+    // Проверяем, что это push в main
+    if (req.body.ref !== 'refs/heads/main') {
+      return res.json({
+        success: true,
+        message: 'Ignoring push to non-main branch',
+        ref: req.body.ref
+      });
+    }
+
+    // Отправляем быстрый ответ GitHub
+    res.json({
+      success: true,
+      message: 'Deployment started',
+      timestamp: new Date().toISOString()
+    });
+
+    // Запускаем деплой асинхронно
+    const deployScriptPath = path.join(__dirname, '../../deploy.sh');
+
+    exec(`bash ${deployScriptPath}`, (error, stdout, stderr) => {
+      if (error) {
+        console.error('❌ Deploy script error:', error);
+        console.error('stderr:', stderr);
+        return;
+      }
+
+      console.log('✅ Deploy completed successfully');
+      console.log('stdout:', stdout);
+    });
+
+  } catch (error) {
+    console.error('Error in github-deploy webhook:', error);
+    // Уже отправили ответ, поэтому просто логируем
+  }
+});
+
+// Применяем middleware ко всем остальным маршрутам
 router.use(authenticateApiKey);
 
 // Эндпоинт для отправки утренних задач пользователю
