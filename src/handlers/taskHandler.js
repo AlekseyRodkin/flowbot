@@ -103,7 +103,7 @@ class TaskHandler {
   }
 
   // Отметить задачу как выполненную
-  async completeTask(ctx, taskService, taskId) {
+  async completeTask(ctx, taskService, taskId, userService = null) {
     try {
       // 1. Отметить задачу (критичная операция)
       const task = await taskService.completeTask(taskId);
@@ -111,6 +111,16 @@ class TaskHandler {
       if (!task) {
         await ctx.answerCbQuery('Задача не найдена', true);
         return;
+      }
+
+      // 2. Отследить взаимодействие пользователя
+      if (userService) {
+        try {
+          await userService.trackInteraction(task.telegram_id);
+        } catch (trackError) {
+          console.error('Error tracking interaction:', trackError);
+          // Не прерываем выполнение, если tracking не удался
+        }
       }
 
       // 2. Проверяем тип задачи для специального поздравления
@@ -194,22 +204,13 @@ class TaskHandler {
           console.log(`🎉 All tasks completed! Updating streak and incrementing user level`);
           const user = ctx.state.user; // Получаем пользователя из контекста
 
-          // 1. СНАЧАЛА обновляем стрик (заслуженно!)
+          // Обновляем стрик (заслуженно!)
           await taskService.updateStreak(task.telegram_id);
 
-          // 2. ПОТОМ увеличиваем уровень пользователя при завершении всех задач
-          const currentLevel = user.level || 1;
-          const nextLevel = currentLevel + 1;
-
-          await this.supabase
-            .from('users')
-            .update({ level: nextLevel })
-            .eq('telegram_id', task.telegram_id);
-
-          console.log(`📈 User ${task.telegram_id} level increased: ${currentLevel} → ${nextLevel}`);
-
-          // Обновляем user object для использования в сообщении
-          user.level = nextLevel;
+          // ВАЖНО: НЕ увеличиваем уровень здесь!
+          // Уровень увеличивается только один раз - утром при отправке новых задач
+          // Это предотвращает двойное увеличение уровня
+          console.log(`✅ All tasks completed for user ${task.telegram_id} on day ${user.level}`);
 
           this.sendEpicCompletion(ctx, stats, user).catch(err =>
             console.error('Error sending epic completion:', err)
@@ -227,19 +228,29 @@ class TaskHandler {
   }
 
   // Переключить статус задачи
-  async toggleTask(ctx, taskService, taskId) {
+  async toggleTask(ctx, taskService, taskId, userService = null) {
     try {
       const task = await taskService.toggleTask(taskId);
-      
+
       if (!task) {
         await ctx.answerCbQuery('Задача не найдена', true);
         return;
       }
 
-      const message = task.completed 
-        ? '✅ Задача выполнена!' 
+      // Отследить взаимодействие пользователя
+      if (userService) {
+        try {
+          await userService.trackInteraction(task.telegram_id);
+        } catch (trackError) {
+          console.error('Error tracking interaction:', trackError);
+          // Не прерываем выполнение, если tracking не удался
+        }
+      }
+
+      const message = task.completed
+        ? '✅ Задача выполнена!'
         : '⏸ Задача снова активна';
-      
+
       await ctx.answerCbQuery(message);
       
       // Обновляем сообщение с задачами

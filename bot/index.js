@@ -15,6 +15,7 @@ const customTaskHandler = require('../src/handlers/customTaskHandler');
 const { FeedbackHandler } = require('../src/handlers/feedbackHandler');
 const { DonationHandler } = require('../src/handlers/donationHandler');
 const { AnalyticsHandler } = require('../src/handlers/analyticsHandler');
+const { pauseProgram, skipAllTasks, continueProgram } = require('../src/handlers/pauseHandler');
 
 // Import services
 const { TaskService } = require('../src/services/taskService');
@@ -300,6 +301,88 @@ bot.command('analytics', async (ctx) => {
   await analyticsHandler.showDashboard(ctx);
 });
 
+// Команда /delete_account_confirm - подтверждение удаления аккаунта
+bot.command('delete_account_confirm', async (ctx) => {
+  try {
+    const user = ctx.state.user;
+    if (!user) {
+      await ctx.reply('Произошла ошибка. Попробуй /start для начала работы.');
+      return;
+    }
+
+    console.log(`⚠️ User ${user.telegram_id} is deleting their account...`);
+
+    // Отправляем сообщение о процессе удаления
+    const processingMessage = await ctx.reply('🗑️ Удаление аккаунта...\n\nПожалуйста, подождите...');
+
+    // Удаляем пользователя
+    const success = await userService.deleteUser(user.telegram_id);
+
+    if (success) {
+      // Удаляем сообщение о процессе
+      try {
+        await ctx.telegram.deleteMessage(ctx.chat.id, processingMessage.message_id);
+      } catch (e) {
+        // Игнорируем ошибки удаления
+      }
+
+      // Отправляем финальное сообщение
+      await ctx.reply(
+        '✅ *Аккаунт удален*\n\n' +
+        'Все твои данные были полностью удалены.\n\n' +
+        'Спасибо за использование FlowBot! 💙\n\n' +
+        'Если захочешь вернуться - просто напиши /start',
+        { parse_mode: 'Markdown' }
+      );
+
+      console.log(`✅ User ${user.telegram_id} account deleted successfully`);
+    } else {
+      // Удаляем сообщение о процессе
+      try {
+        await ctx.telegram.deleteMessage(ctx.chat.id, processingMessage.message_id);
+      } catch (e) {
+        // Игнорируем ошибки удаления
+      }
+
+      await ctx.reply(
+        '❌ *Ошибка при удалении аккаунта*\n\n' +
+        'Попробуй позже или обратись в поддержку.',
+        { parse_mode: 'Markdown' }
+      );
+    }
+  } catch (error) {
+    console.error('Error in delete_account_confirm:', error);
+    await ctx.reply('Произошла ошибка. Попробуй позже.');
+  }
+});
+
+// Команда /resume - снять программу с паузы
+bot.command('resume', async (ctx) => {
+  try {
+    const user = ctx.state.user;
+    if (!user) {
+      await ctx.reply('Произошла ошибка. Попробуй /start для начала работы.');
+      return;
+    }
+
+    // Снимаем пользователя с паузы
+    await userService.resumeUser(user.telegram_id);
+
+    await ctx.reply(
+      `⏯️ *Программа возобновлена!*\n\n` +
+      `Утренние задачи снова будут приходить в назначенное время.\n` +
+      `Твой уровень: ${user.level}\n\n` +
+      `💪 Продолжай в том же духе!`,
+      { parse_mode: 'Markdown' }
+    );
+
+    console.log(`✅ User ${user.telegram_id} resumed the program`);
+  } catch (error) {
+    console.error('Error in /resume command:', error);
+    await ctx.reply('Произошла ошибка. Попробуй позже.');
+  }
+});
+
 // Команда /help - помощь
 bot.help(async (ctx) => {
   const helpMessage = `
@@ -450,7 +533,7 @@ bot.on('callback_query', async (ctx) => {
   switch(action) {
     case 'task':
       // Обработка отметки выполнения задачи
-      await taskHandler.completeTask(ctx, taskService, params[0]);
+      await taskHandler.completeTask(ctx, taskService, params[0], userService);
 
       // Проверяем триггеры на 7-й и 14-й день в фоне (не блокируем UI)
       setImmediate(() => {
@@ -1827,6 +1910,27 @@ _💡 Независимо от выбора, все начинают с про�
           console.error('Error completing day:', error);
           await ctx.answerCbQuery('Ошибка при завершении дня');
         }
+      }
+      break;
+
+    case 'pause':
+      // Обработка кнопки "Поставить на паузу"
+      if (params[0] === 'program') {
+        await pauseProgram(ctx, userService);
+      }
+      break;
+
+    case 'skip':
+      // Обработка кнопки "Закрыть все задачи"
+      if (params[0] === 'all' && params[1] === 'tasks') {
+        await skipAllTasks(ctx, supabase, userService);
+      }
+      break;
+
+    case 'continue':
+      // Обработка кнопки "Продолжить дальше"
+      if (params[0] === 'program') {
+        await continueProgram(ctx, userService, notificationService);
       }
       break;
 

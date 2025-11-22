@@ -1,4 +1,5 @@
 // src/services/notificationService.js
+// FIXED: День 1 больше не повторяется дважды - уровень увеличивается только при 100% выполнении вчерашних задач
 // VPS deployment: Running on 5.129.224.93 with auto-deploy via GitHub webhook
 const cron = require('node-cron');
 const moment = require('moment-timezone');
@@ -111,8 +112,109 @@ class NotificationService {
 
   // Отправка задач конкретному пользователю
   async sendTasksToUser(user) {
-    // Используем ТОЛЬКО user.level как единственный источник истины для дня программы
-    const currentDay = user.level || 1;
+    // ═══════════════════════════════════════════════════════════════
+    // ПРОВЕРКА ПАУЗЫ: Если пользователь на паузе - пропускаем отправку
+    // ═══════════════════════════════════════════════════════════════
+    if (user.is_paused) {
+      console.log(`⏸️ User ${user.telegram_id} is paused - skipping task sending`);
+      return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ПРОВЕРКА НЕАКТИВНОСТИ: Определяем был ли пользователь активен вчера
+    // ═══════════════════════════════════════════════════════════════
+    const yesterday = moment().tz('Europe/Moscow').subtract(1, 'day').format('YYYY-MM-DD');
+    const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
+
+    // Проверяем дату последнего взаимодействия
+    const lastInteractionDate = user.last_interaction_date;
+    const wasActiveYesterday = lastInteractionDate && moment(lastInteractionDate).format('YYYY-MM-DD') === yesterday;
+
+    // ═══════════════════════════════════════════════════════════════
+    // ПРОВЕРКА: Нужно ли увеличить уровень перед генерацией задач?
+    // Увеличиваем уровень ТОЛЬКО если вчера >= 90% задач были выполнены
+    // ═══════════════════════════════════════════════════════════════
+
+    let currentDay = user.level || 1;
+    
+    // Проверяем, были ли у пользователя задачи вчера
+    const { data: yesterdayTasks } = await this.supabase
+      .from('tasks')
+      .select('*')
+      .eq('telegram_id', user.telegram_id)
+      .eq('date', yesterday);
+    
+    let inactiveDaysCount = user.inactive_days_count || 0;
+
+    if (yesterdayTasks && yesterdayTasks.length > 0) {
+      // Проверяем процент выполнения вчерашних задач (исключая магическую и пропущенные)
+      const regularTasks = yesterdayTasks.filter(t => t.task_type !== 'magic' && t.status !== 'skipped');
+      const completedTasks = regularTasks.filter(t => t.completed || t.status === 'completed').length;
+      const totalTasks = regularTasks.length;
+      const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+      // Если вчера >= 90% задач были выполнены, увеличиваем уровень
+      if (completionRate >= 90) {
+        currentDay = currentDay + 1;
+        inactiveDaysCount = 0; // Сбрасываем счётчик неактивных дней
+
+        await this.supabase
+          .from('users')
+          .update({
+            level: currentDay,
+            inactive_days_count: inactiveDaysCount
+          })
+          .eq('telegram_id', user.telegram_id);
+
+        console.log(`📈 User ${user.telegram_id} completed ${completionRate}% tasks yesterday. Level increased: ${user.level} → ${currentDay}`);
+
+        // Обновляем уровень в объекте user для дальнейшего использования
+        user.level = currentDay;
+      } else {
+        // Увеличиваем счётчик неактивных дней только если не было взаимодействия
+        if (!wasActiveYesterday) {
+          inactiveDaysCount++;
+          await this.supabase
+            .from('users')
+            .update({ inactive_days_count: inactiveDaysCount })
+            .eq('telegram_id', user.telegram_id);
+        }
+
+        console.log(`⏸️ User ${user.telegram_id} didn't complete enough tasks yesterday (${completionRate}%). Staying at level ${currentDay}. Inactive days: ${inactiveDaysCount}`);
+      }
+    } else {
+      // Первый день или после сброса - остаемся на текущем уровне
+      console.log(`🆕 User ${user.telegram_id} - first day or no tasks yesterday. Starting at level ${currentDay}`);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ПРОВЕРКА НЕАКТИВНОСТИ: Отправляем предупреждение если пользователь
+    // неактивен 1+ дней подряд
+    // ═══════════════════════════════════════════════════════════════
+    if (inactiveDaysCount >= 1) {
+      console.log(`⚠️ User ${user.telegram_id} has ${inactiveDaysCount} inactive day(s) - sending pause warning`);
+
+      const warningMessage = `⚠️ *Похоже, ты не выполнил задачи вчера*\n\n` +
+        `Что хочешь сделать?\n\n` +
+        `📌 *Поставить программу на паузу* — утренние задачи не будут приходить\n` +
+        `📋 *Закрыть все незавершённые задачи* — отметить их как пропущенные\n` +
+        `💪 *Продолжить дальше* — получить задачи на сегодня`;
+
+      await this.bot.telegram.sendMessage(user.telegram_id, warningMessage, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '⏸️ Поставить на паузу', callback_data: 'pause_program' }],
+            [{ text: '📋 Закрыть все задачи', callback_data: 'skip_all_tasks' }],
+            [{ text: '💪 Продолжить дальше', callback_data: 'continue_program' }]
+          ]
+        }
+      });
+
+      console.log(`✅ Pause warning sent to user ${user.telegram_id}, skipping task generation`);
+      // НЕ отправляем задачи - ждём выбора пользователя
+      return;
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // ОЧИСТКА ЧАТА: Удаляем все старые сообщения кроме вчерашнего вечернего
@@ -234,14 +336,10 @@ class NotificationService {
       await eventLogger.logReturnedDay30(user.telegram_id);
     }
 
-    // Увеличиваем уровень пользователя ПОСЛЕ отправки (для следующего дня)
-    const nextLevel = (user.level || 1) + 1;
-    await this.supabase
-      .from('users')
-      .update({ level: nextLevel })
-      .eq('telegram_id', user.telegram_id);
-
-    console.log(`📈 User ${user.telegram_id} level increased: ${user.level} → ${nextLevel}`);
+    // НЕ увеличиваем уровень здесь!
+    // Уровень увеличивается только на следующее утро перед генерацией новых задач
+    // если вчерашние задачи были выполнены на 100%
+    console.log(`✅ Morning tasks sent to user ${user.telegram_id} for day ${currentDay}`);
   }
 
   // Получить конфигурацию задач по уровню

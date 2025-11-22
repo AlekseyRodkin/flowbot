@@ -393,23 +393,281 @@ class UserService {
     }
   }
 
+  // Удалить все данные пользователя из всех таблиц
+  async deleteAllUserData(telegramId) {
+    const deletionReport = {
+      success: true,
+      tables: {},
+      errors: []
+    };
+
+    try {
+      console.log(`🗑️ Starting complete data deletion for user ${telegramId}`);
+
+      // 1. Удаляем bot_messages
+      console.log('🗑️ Deleting bot messages...');
+      const { error: botMessagesError, count: botMessagesCount } = await this.supabase
+        .from('bot_messages')
+        .delete()
+        .eq('telegram_id', telegramId)
+        .select('id', { count: 'exact', head: true });
+      
+      if (botMessagesError) {
+        deletionReport.errors.push(`bot_messages: ${botMessagesError.message}`);
+      } else {
+        deletionReport.tables.bot_messages = botMessagesCount || 0;
+        console.log(`✅ Deleted ${botMessagesCount || 0} bot messages`);
+      }
+
+      // 2. Удаляем custom_tasks
+      console.log('🗑️ Deleting custom tasks...');
+      const { error: customTasksError, count: customTasksCount } = await this.supabase
+        .from('custom_tasks')
+        .delete()
+        .eq('telegram_id', telegramId)
+        .select('id', { count: 'exact', head: true });
+      
+      if (customTasksError) {
+        deletionReport.errors.push(`custom_tasks: ${customTasksError.message}`);
+      } else {
+        deletionReport.tables.custom_tasks = customTasksCount || 0;
+        console.log(`✅ Deleted ${customTasksCount || 0} custom tasks`);
+      }
+
+      // 3. Удаляем viral_triggers
+      console.log('🗑️ Deleting viral triggers...');
+      const { error: viralError, count: viralCount } = await this.supabase
+        .from('viral_triggers')
+        .delete()
+        .eq('user_telegram_id', telegramId)
+        .select('id', { count: 'exact', head: true });
+      
+      if (viralError) {
+        deletionReport.errors.push(`viral_triggers: ${viralError.message}`);
+      } else {
+        deletionReport.tables.viral_triggers = viralCount || 0;
+        console.log(`✅ Deleted ${viralCount || 0} viral triggers`);
+      }
+
+      // 4. Удаляем tasks
+      console.log('🗑️ Deleting tasks...');
+      const { error: tasksError, count: tasksCount } = await this.supabase
+        .from('tasks')
+        .delete()
+        .eq('telegram_id', telegramId)
+        .select('id', { count: 'exact', head: true });
+      
+      if (tasksError) {
+        deletionReport.errors.push(`tasks: ${tasksError.message}`);
+      } else {
+        deletionReport.tables.tasks = tasksCount || 0;
+        console.log(`✅ Deleted ${tasksCount || 0} tasks`);
+      }
+
+      // 5. Удаляем daily_stats
+      console.log('🗑️ Deleting daily stats...');
+      const { error: statsError, count: statsCount } = await this.supabase
+        .from('daily_stats')
+        .delete()
+        .eq('telegram_id', telegramId)
+        .select('id', { count: 'exact', head: true });
+      
+      if (statsError) {
+        deletionReport.errors.push(`daily_stats: ${statsError.message}`);
+      } else {
+        deletionReport.tables.daily_stats = statsCount || 0;
+        console.log(`✅ Deleted ${statsCount || 0} daily stats records`);
+      }
+
+      // 6. Удаляем streaks
+      console.log('🗑️ Deleting streaks...');
+      const { error: streaksError } = await this.supabase
+        .from('streaks')
+        .delete()
+        .eq('telegram_id', telegramId);
+      
+      if (streaksError) {
+        deletionReport.errors.push(`streaks: ${streaksError.message}`);
+      } else {
+        deletionReport.tables.streaks = 1;
+        console.log(`✅ Deleted streak record`);
+      }
+
+      // 7. Удаляем user_achievements
+      console.log('🗑️ Deleting achievements...');
+      const { error: achievementsError, count: achievementsCount } = await this.supabase
+        .from('user_achievements')
+        .delete()
+        .eq('telegram_id', telegramId)
+        .select('achievement_id', { count: 'exact', head: true });
+      
+      if (achievementsError) {
+        deletionReport.errors.push(`user_achievements: ${achievementsError.message}`);
+      } else {
+        deletionReport.tables.user_achievements = achievementsCount || 0;
+        console.log(`✅ Deleted ${achievementsCount || 0} achievements`);
+      }
+
+      // 8. Удаляем reflections
+      console.log('🗑️ Deleting reflections...');
+      const { error: reflectionsError, count: reflectionsCount } = await this.supabase
+        .from('reflections')
+        .delete()
+        .eq('telegram_id', telegramId)
+        .select('id', { count: 'exact', head: true });
+      
+      if (reflectionsError) {
+        deletionReport.errors.push(`reflections: ${reflectionsError.message}`);
+      } else {
+        deletionReport.tables.reflections = reflectionsCount || 0;
+        console.log(`✅ Deleted ${reflectionsCount || 0} reflections`);
+      }
+
+      // 9. Удаляем referral_rewards (проверяем правильное имя колонки)
+      console.log('🗑️ Deleting referral rewards...');
+      try {
+        // Сначала пытаемся найти user_id по telegram_id
+        const { data: user } = await this.supabase
+          .from('users')
+          .select('id')
+          .eq('telegram_id', telegramId)
+          .single();
+        
+        if (user && user.id) {
+          const { error: rewardsError, count: rewardsCount } = await this.supabase
+            .from('referral_rewards')
+            .delete()
+            .eq('user_id', user.id)
+            .select('id', { count: 'exact', head: true });
+          
+          if (rewardsError) {
+            deletionReport.errors.push(`referral_rewards: ${rewardsError.message}`);
+          } else {
+            deletionReport.tables.referral_rewards = rewardsCount || 0;
+            console.log(`✅ Deleted ${rewardsCount || 0} referral rewards`);
+          }
+        }
+      } catch (error) {
+        // Таблица может не существовать
+        console.log('⚠️ Could not process referral_rewards');
+      }
+
+      // 10. Удаляем referrals где пользователь referred
+      console.log('🗑️ Deleting referral records where user was referred...');
+      try {
+        // Сначала пытаемся найти user_id по telegram_id
+        const { data: user } = await this.supabase
+          .from('users')
+          .select('id')
+          .eq('telegram_id', telegramId)
+          .single();
+        
+        if (user && user.id) {
+          const { error: referralsError, count: referralsCount } = await this.supabase
+            .from('referrals')
+            .delete()
+            .eq('referred_id', user.id)
+            .select('id', { count: 'exact', head: true });
+          
+          if (referralsError) {
+            deletionReport.errors.push(`referrals (as referred): ${referralsError.message}`);
+          } else {
+            deletionReport.tables.referrals_as_referred = referralsCount || 0;
+            console.log(`✅ Deleted ${referralsCount || 0} referral records where user was referred`);
+          }
+          
+          // Также удаляем referrals где пользователь был referrer
+          const { error: referrerError, count: referrerCount } = await this.supabase
+            .from('referrals')
+            .delete()
+            .eq('referrer_id', user.id)
+            .select('id', { count: 'exact', head: true });
+          
+          if (referrerError) {
+            deletionReport.errors.push(`referrals (as referrer): ${referrerError.message}`);
+          } else {
+            deletionReport.tables.referrals_as_referrer = referrerCount || 0;
+            console.log(`✅ Deleted ${referrerCount || 0} referral records where user was referrer`);
+          }
+        }
+      } catch (error) {
+        // Таблица может не существовать
+        console.log('⚠️ Could not process referrals');
+      }
+
+      // 11. Удаляем moods если есть
+      console.log('🗑️ Checking for moods table...');
+      const { error: moodsError } = await this.supabase
+        .from('moods')
+        .delete()
+        .eq('telegram_id', telegramId);
+      
+      // Не добавляем в ошибки если таблица не существует
+      if (moodsError && 
+          !moodsError.message.includes('relation "moods" does not exist') &&
+          !moodsError.message.includes('Could not find the table')) {
+        deletionReport.errors.push(`moods: ${moodsError.message}`);
+      }
+
+      // 12. Удаляем event_logs если есть
+      console.log('🗑️ Checking for event_logs table...');
+      const { error: eventsError } = await this.supabase
+        .from('event_logs')
+        .delete()
+        .eq('user_telegram_id', telegramId);
+      
+      // Не добавляем в ошибки если таблица не существует
+      if (eventsError && 
+          !eventsError.message.includes('relation "event_logs" does not exist') &&
+          !eventsError.message.includes('Could not find the table')) {
+        deletionReport.errors.push(`event_logs: ${eventsError.message}`);
+      }
+
+      if (deletionReport.errors.length > 0) {
+        deletionReport.success = false;
+        console.warn('⚠️ Some errors occurred during deletion:', deletionReport.errors);
+      }
+
+      console.log('📊 Deletion report:', deletionReport);
+      return deletionReport;
+
+    } catch (error) {
+      console.error('❌ Critical error in deleteAllUserData:', error);
+      deletionReport.success = false;
+      deletionReport.errors.push(`Critical error: ${error.message}`);
+      return deletionReport;
+    }
+  }
+
   // Полностью удалить пользователя
   async deleteUser(telegramId) {
     try {
+      console.log(`🗑️ Starting complete user deletion for ${telegramId}`);
+      
+      // Сначала удаляем все связанные данные
+      const deletionReport = await this.deleteAllUserData(telegramId);
+      
+      if (!deletionReport.success) {
+        console.error('⚠️ Some data deletion errors occurred, but continuing with user deletion');
+      }
+
+      // Затем удаляем самого пользователя
+      console.log('🗑️ Deleting user record...');
       const { error } = await this.supabase
         .from('users')
         .delete()
         .eq('telegram_id', telegramId);
 
       if (error) {
-        console.error('Error deleting user:', error);
+        console.error('❌ Error deleting user:', error);
         return false;
       }
 
       console.log(`✅ Пользователь ${telegramId} полностью удален`);
+      console.log(`📊 Deleted data from tables:`, deletionReport.tables);
       return true;
     } catch (error) {
-      console.error('Error deleting user:', error);
+      console.error('❌ Error deleting user:', error);
       return false;
     }
   }
@@ -464,16 +722,127 @@ class UserService {
         .select('*')
         .eq('id', id)
         .single();
-      
+
       if (error) {
         console.error('Error getting user by id:', error);
         return null;
       }
-      
+
       return await this.enrichUserData(data);
     } catch (error) {
       console.error('Error in getUserById:', error);
       return null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // МЕТОДЫ ДЛЯ УПРАВЛЕНИЯ ПАУЗОЙ И НЕАКТИВНОСТЬЮ
+  // ═══════════════════════════════════════════════════════════════
+
+  // Поставить пользователя на паузу
+  async pauseUser(telegramId) {
+    try {
+      const { data, error } = await this.supabase
+        .from('users')
+        .update({
+          is_paused: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('telegram_id', telegramId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error pausing user:', error);
+        throw error;
+      }
+
+      console.log(`✅ User ${telegramId} paused successfully`);
+      return data;
+    } catch (error) {
+      console.error('Error in pauseUser:', error);
+      throw error;
+    }
+  }
+
+  // Снять пользователя с паузы
+  async resumeUser(telegramId) {
+    try {
+      const { data, error } = await this.supabase
+        .from('users')
+        .update({
+          is_paused: false,
+          inactive_days_count: 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq('telegram_id', telegramId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error resuming user:', error);
+        throw error;
+      }
+
+      console.log(`✅ User ${telegramId} resumed successfully`);
+      return data;
+    } catch (error) {
+      console.error('Error in resumeUser:', error);
+      throw error;
+    }
+  }
+
+  // Сбросить счётчик неактивных дней
+  async resetInactiveDays(telegramId) {
+    try {
+      const { data, error } = await this.supabase
+        .from('users')
+        .update({
+          inactive_days_count: 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq('telegram_id', telegramId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error resetting inactive days:', error);
+        throw error;
+      }
+
+      console.log(`✅ User ${telegramId} inactive days reset`);
+      return data;
+    } catch (error) {
+      console.error('Error in resetInactiveDays:', error);
+      throw error;
+    }
+  }
+
+  // Отследить взаимодействие пользователя (обновить last_interaction_date)
+  async trackInteraction(telegramId) {
+    try {
+      const today = moment().tz('Europe/Moscow').format('YYYY-MM-DD');
+
+      const { data, error } = await this.supabase
+        .from('users')
+        .update({
+          last_interaction_date: today,
+          updated_at: new Date().toISOString()
+        })
+        .eq('telegram_id', telegramId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error tracking interaction:', error);
+        throw error;
+      }
+
+      console.log(`✅ User ${telegramId} interaction tracked for ${today}`);
+      return data;
+    } catch (error) {
+      console.error('Error in trackInteraction:', error);
+      throw error;
     }
   }
 }
